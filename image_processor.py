@@ -6,7 +6,6 @@ from transformers import BlipProcessor, BlipForConditionalGeneration
 from datetime import datetime
 import hashlib
 from urllib.parse import urlparse
-import requests
 import numpy as np
 
 class ImageProcessor:
@@ -19,45 +18,21 @@ class ImageProcessor:
         self.load_model()
         
     def load_stopwords(self):
-        """Load English stopwords from a remote source or use fallback"""
+        """Load English stopwords from local file"""
         try:
-            # Try to load from local cache first
-            cache_file = 'stopwords_cache.txt'
-            if os.path.exists(cache_file):
-                with open(cache_file, 'r') as f:
-                    self.stopwords = set(word.strip().lower() for word in f.readlines() if word.strip())
-                print(f"Loaded {len(self.stopwords)} stopwords from cache")
-                return
-            
-            # Download from a reliable source
-            print("Downloading English stopwords...")
-            url = "https://raw.githubusercontent.com/stopwords-iso/stopwords-en/master/stopwords-en.txt"
-            response = requests.get(url, timeout=10)
-            response.raise_for_status()
-            
-            # Parse stopwords
-            stopwords_list = [word.strip().lower() for word in response.text.split('\n') if word.strip()]
-            self.stopwords = set(stopwords_list)
-            
-            # Cache for future use
-            with open(cache_file, 'w') as f:
-                for word in sorted(self.stopwords):
-                    f.write(f"{word}\n")
-            
-            print(f"Downloaded and cached {len(self.stopwords)} stopwords")
-            
+            # Load from local stopwords file
+            stopwords_file = 'stopwords-en.txt'
+            with open(stopwords_file, 'r') as f:
+                # Skip comment lines that start with #
+                self.stopwords = set(
+                    word.strip().lower() 
+                    for word in f.readlines() 
+                    if word.strip() and not word.strip().startswith('#')
+                )
+            print(f"Loaded {len(self.stopwords)} stopwords from {stopwords_file}")
         except Exception as e:
-            print(f"Failed to download stopwords: {e}")
-            print("Using minimal fallback stopwords")
-            # Minimal fallback stopwords
-            self.stopwords = {
-                'a', 'an', 'the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 
-                'of', 'with', 'by', 'is', 'are', 'was', 'were', 'be', 'been', 'being',
-                'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could',
-                'should', 'may', 'might', 'must', 'can', 'this', 'that', 'these',
-                'those', 'i', 'you', 'he', 'she', 'it', 'we', 'they', 'me', 'him',
-                'her', 'us', 'them', 'my', 'your', 'his', 'her', 'its', 'our', 'their'
-            }
+            print(f"Failed to load stopwords from file: {e}")
+            self.stopwords = set()  # Empty set if file can't be loaded
         
     def load_model(self):
         """Load the BLIP model for image captioning"""
