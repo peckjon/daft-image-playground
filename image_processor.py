@@ -93,12 +93,96 @@ class ImageProcessor:
             
             # Generate basic tags from caption
             common_objects = [
-                'person', 'people', 'man', 'woman', 'child', 'baby',
-                'dog', 'cat', 'bird', 'animal', 'car', 'bike', 'motorcycle',
-                'house', 'building', 'tree', 'flower', 'garden', 'park',
-                'beach', 'ocean', 'mountain', 'sky', 'cloud', 'sun',
-                'food', 'plate', 'table', 'chair', 'room', 'kitchen',
-                'outdoor', 'indoor', 'nature', 'city', 'street'
+                # People
+                'person', 'people', 'man', 'woman', 'child', 'baby', 'boy', 'girl', 'adult', 'human', 'face', 'head',
+                'family', 'group', 'crowd', 'individual', 'portrait', 'selfie', 'couple', 'friend', 'friends',
+                
+                # Animals
+                'dog', 'cat', 'bird', 'animal', 'pet', 'horse', 'cow', 'sheep', 'pig', 'chicken', 'duck', 'goose',
+                'fish', 'shark', 'whale', 'dolphin', 'bear', 'lion', 'tiger', 'elephant', 'giraffe', 'zebra',
+                'monkey', 'rabbit', 'squirrel', 'deer', 'fox', 'wolf', 'mouse', 'rat', 'hamster', 'guinea pig',
+                'butterfly', 'bee', 'spider', 'insect', 'wildlife', 'zoo', 'farm', 'domestic', 'wild',
+                
+                # Vehicles
+                'car', 'bike', 'bicycle', 'motorcycle', 'truck', 'bus', 'van', 'taxi', 'vehicle', 'transport',
+                'train', 'airplane', 'plane', 'helicopter', 'boat', 'ship', 'yacht', 'sailboat', 'submarine',
+                'scooter', 'skateboard', 'roller', 'wheel', 'tire', 'engine', 'traffic', 'road',
+                
+                # Buildings & Architecture
+                'house', 'building', 'home', 'structure', 'architecture', 'tower', 'bridge', 'castle', 'church',
+                'school', 'hospital', 'office', 'store', 'shop', 'mall', 'restaurant', 'cafe', 'hotel',
+                'apartment', 'skyscraper', 'barn', 'garage', 'warehouse', 'factory', 'museum', 'library',
+                'stadium', 'theater', 'cinema', 'bank', 'station', 'airport', 'construction', 'brick', 'stone',
+                
+                # Nature & Plants
+                'tree', 'flower', 'plant', 'leaf', 'grass', 'forest', 'garden', 'branch', 'root', 'seed',
+                'rose', 'tulip', 'daisy', 'sunflower', 'lily', 'orchid', 'bush', 'hedge', 'vine', 'moss',
+                'fern', 'palm', 'pine', 'oak', 'maple', 'willow', 'bamboo', 'cactus', 'succulent', 'herb',
+                
+                # Landscape & Geography
+                'beach', 'ocean', 'sea', 'water', 'mountain', 'hill', 'valley', 'lake', 'river', 'stream',
+                'waterfall', 'pond', 'pool', 'desert', 'sand', 'rock', 'cliff', 'cave', 'island', 'coast',
+                'shore', 'bay', 'harbor', 'field', 'meadow', 'prairie', 'plain', 'plateau', 'canyon', 'gorge',
+                
+                # Weather & Sky
+                'sky', 'cloud', 'clouds', 'sun', 'moon', 'star', 'stars', 'sunset', 'sunrise', 'dawn', 'dusk',
+                'rain', 'snow', 'storm', 'lightning', 'thunder', 'wind', 'fog', 'mist', 'rainbow', 'weather',
+                
+                # Food & Drink
+                'food', 'meal', 'plate', 'bowl', 'cup', 'glass', 'bottle', 'fruit', 'apple', 'banana', 'orange',
+                'grape', 'strawberry', 'cherry', 'peach', 'pear', 'lemon', 'lime', 'vegetable', 'tomato',
+                'carrot', 'potato', 'onion', 'pepper', 'lettuce', 'cabbage', 'broccoli', 'corn', 'bread',
+                'cake', 'cookie', 'pie', 'pizza', 'sandwich', 'burger', 'meat', 'chicken', 'beef', 'pork',
+                'fish', 'seafood', 'cheese', 'milk', 'egg', 'pasta', 'rice', 'soup', 'salad', 'dessert',
+                'coffee', 'tea', 'juice', 'wine', 'beer', 'soda', 'water', 'drink', 'beverage',
+                
+                # Furniture & Objects
+                'table', 'chair', 'bed', 'sofa', 'couch', 'desk', 'furniture', 'seat', 'bench', 'stool',
+                'cabinet', 'shelf', 'bookshelf', 'dresser', 'wardrobe', 'mirror', 'lamp', 'light', 'window',
+                'door', 'wall', 'floor', 'ceiling', 'curtain', 'blind', 'carpet', 'rug', 'pillow', 'cushion',
+                'blanket', 'sheet', 'towel', 'clock', 'picture', 'painting', 'frame', 'vase', 'pot', 'pan',
+                
+                # Rooms & Spaces
+                'room', 'kitchen', 'bedroom', 'bathroom', 'living', 'dining', 'office', 'study', 'garage',
+                'basement', 'attic', 'balcony', 'patio', 'deck', 'porch', 'hallway', 'corridor', 'closet',
+                'pantry', 'laundry', 'indoor', 'interior', 'inside',
+                
+                # Outdoor & Settings
+                'outdoor', 'outside', 'exterior', 'yard', 'lawn', 'driveway', 'sidewalk', 'street', 'road',
+                'highway', 'path', 'trail', 'park', 'playground', 'garden', 'backyard', 'frontyard', 'fence',
+                'gate', 'mailbox', 'city', 'town', 'village', 'urban', 'rural', 'suburban', 'downtown',
+                'neighborhood', 'plaza', 'square', 'market', 'fair', 'festival', 'event', 'crowd', 'public',
+                
+                # Colors
+                'red', 'blue', 'green', 'yellow', 'orange', 'purple', 'pink', 'brown', 'black', 'white',
+                'gray', 'grey', 'silver', 'gold', 'beige', 'tan', 'maroon', 'navy', 'teal', 'turquoise',
+                'violet', 'magenta', 'cyan', 'lime', 'olive', 'color', 'colorful', 'bright', 'dark', 'light',
+                
+                # Activities & Actions
+                'sitting', 'standing', 'walking', 'running', 'jumping', 'playing', 'eating', 'drinking',
+                'sleeping', 'reading', 'writing', 'cooking', 'cleaning', 'working', 'studying', 'talking',
+                'laughing', 'smiling', 'dancing', 'singing', 'swimming', 'driving', 'riding', 'flying',
+                'climbing', 'hiking', 'camping', 'fishing', 'hunting', 'shopping', 'traveling', 'vacation',
+                
+                # Technology & Objects
+                'computer', 'laptop', 'phone', 'mobile', 'tablet', 'screen', 'monitor', 'keyboard', 'mouse',
+                'camera', 'photo', 'picture', 'video', 'television', 'tv', 'radio', 'speaker', 'headphone',
+                'watch', 'clock', 'calculator', 'remote', 'charger', 'cable', 'wire', 'battery', 'device',
+                
+                # Sports & Recreation
+                'sport', 'game', 'ball', 'football', 'soccer', 'basketball', 'baseball', 'tennis', 'golf',
+                'hockey', 'volleyball', 'swimming', 'running', 'cycling', 'skiing', 'surfing', 'skateboard',
+                'gym', 'fitness', 'exercise', 'workout', 'team', 'player', 'athlete', 'competition', 'match',
+                
+                # Clothing & Accessories
+                'clothing', 'clothes', 'shirt', 'pants', 'dress', 'skirt', 'jacket', 'coat', 'sweater',
+                'hat', 'cap', 'shoes', 'boots', 'sandals', 'socks', 'gloves', 'scarf', 'belt', 'tie',
+                'jewelry', 'necklace', 'ring', 'bracelet', 'earring', 'watch', 'bag', 'purse', 'backpack',
+                
+                # Art & Culture
+                'art', 'painting', 'drawing', 'sculpture', 'statue', 'gallery', 'museum', 'culture',
+                'music', 'instrument', 'guitar', 'piano', 'violin', 'drum', 'concert', 'performance',
+                'book', 'magazine', 'newspaper', 'text', 'writing', 'letter', 'sign', 'poster', 'banner'
             ]
             
             tags = []
