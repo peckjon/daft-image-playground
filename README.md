@@ -25,7 +25,7 @@ The three Daft features that really shine in this project are:
 
 **📊 [SQL Query over JSON](https://docs.getdaft.io/en/stable/sql_overview/)**: Once our image metadata is processed, Daft's SQL interface `daft.sql()` lets us write SQL queries directly over our JSON data structures, including complex operations that replace slow and cumbersome dataframe operations -- like array explosions for tag searching, and querying across multiple fields simultaneously.
 
-## What We Built Together
+## Building the Demo: Where Theory Meets Practice
 
 This image search tool demonstrates how these capabilities come together. The application discovers images in local folders, processes them through AI models for automatic captioning and tagging, then creates a searchable web interface. Here's where Daft eliminated entire categories of complexity:
 
@@ -44,8 +44,7 @@ Full transparency: while the initial code generation was aided by GitHub Copilot
 
 This project showcases only a tiny slice of [Daft's capabilities](https://daft.ai). The framework supports everything from distributed computing across cloud infrastructure to advanced ML workloads with GPU acceleration. If you're dealing with large-scale data processing, multimedia pipelines, or looking to modernize your data infrastructure, there's a lot more to explore.
 
-> [!TIP]
-> Ready to dive in? [Jump right into the code](https://github.com/peckjon/daft-image-playground) or read the detailed implementation guide below!
+🚀 **Ready to dive in?** [Jump right into the code](https://github.com/peckjon/daft-image-playground) or read the detailed implementation guide below!
 
 ## Features
 
