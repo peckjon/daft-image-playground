@@ -72,9 +72,6 @@ class ImageProcessor:
     
     def find_images(self, folder_path):
         """Use Daft to find all images in folder and subfolders"""
-        # Supported image extensions
-        image_extensions = {'.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.tiff'}
-        
         # Create a Daft DataFrame from the file system
         df = daft.from_glob_path(f"{folder_path}/**/*")
         
@@ -89,7 +86,7 @@ class ImageProcessor:
             df["path"].str.endswith(".tiff")
         )
         
-        return df.collect()
+        return df
     
     def convert_uri_to_path(self, uri_path):
         """Convert file:// URI to local file path"""
@@ -98,10 +95,13 @@ class ImageProcessor:
             return parsed.path
         return uri_path
     
-    def resize_image(self, image_path, target_size=(224, 224)):
-        """Resize image to target size while maintaining aspect ratio"""
+    def resize_image_udf(self, image_path, target_size=(224, 224)):
+        """UDF function to resize a single image for Daft bulk processing"""
         try:
-            with Image.open(image_path) as img:
+            # Convert URI to path if needed
+            local_path = self.convert_uri_to_path(image_path)
+            
+            with Image.open(local_path) as img:
                 # Convert to RGB if necessary
                 if img.mode != 'RGB':
                     img = img.convert('RGB')
@@ -117,55 +117,98 @@ class ImageProcessor:
                 y = (target_size[1] - img.height) // 2
                 
                 new_img.paste(img, (x, y))
-                return new_img
+                
+                # Generate output filename
+                filename = os.path.basename(local_path)
+                name, ext = os.path.splitext(filename)
+                image_hash = hashlib.md5(local_path.encode()).hexdigest()[:8]
+                processed_filename = f"{name}_{image_hash}.jpg"
+                
+                # Create output directory if it doesn't exist
+                output_dir = 'processed_images'
+                os.makedirs(output_dir, exist_ok=True)
+                processed_path = os.path.join(output_dir, processed_filename)
+                
+                # Save resized image
+                new_img.save(processed_path, 'JPEG', quality=85)
+                
+                # Get file stats
+                file_stats = os.stat(local_path)
+                
+                return {
+                    'original_path': local_path,
+                    'processed_filename': processed_filename,
+                    'processed_path': processed_path,
+                    'filename': filename,
+                    'file_size': file_stats.st_size,
+                    'created_date': datetime.fromtimestamp(file_stats.st_mtime).isoformat(),
+                    'image_hash': image_hash,
+                    'success': True,
+                    'error': None
+                }
                 
         except Exception as e:
             print(f"Error resizing image {image_path}: {e}")
-            return None
+            return {
+                'original_path': image_path,
+                'processed_filename': None,
+                'processed_path': None,
+                'filename': os.path.basename(image_path) if isinstance(image_path, str) else 'unknown',
+                'file_size': 0,
+                'created_date': datetime.now().isoformat(),
+                'image_hash': None,
+                'success': False,
+                'error': str(e)
+            }
     
-    def generate_tags_and_caption(self, image):
+    def generate_tags_and_caption(self, image_path):
         """Generate tags and caption for an image using BLIP model"""
         if self.model is None or self.processor is None:
             # Fallback to basic tags if model is not loaded
             return ["image"], "An image file"
         
         try:
-            # Generate caption
-            inputs = self.processor(image, return_tensors="pt")
-            out = self.model.generate(**inputs, max_length=50)
-            caption = self.processor.decode(out[0], skip_special_tokens=True)
-            
-            # Split caption into words and clean them
-            words = caption.lower().split()
-            tags = []
-            
-            for word in words:
-                # Remove punctuation from word
-                clean_word = ''.join(char for char in word if char.isalnum())
+            # Load and process image
+            with Image.open(image_path) as img:
+                if img.mode != 'RGB':
+                    img = img.convert('RGB')
                 
-                # Skip if word is too short, too long, or in stopwords
-                if (len(clean_word) >= 3 and 
-                    len(clean_word) <= 20 and 
-                    clean_word not in self.stopwords and
-                    clean_word.isalpha()):  # Only alphabetic characters
-                    tags.append(clean_word)
-            
-            # Remove duplicates while preserving order
-            seen = set()
-            unique_tags = []
-            for tag in tags:
-                if tag not in seen:
-                    seen.add(tag)
-                    unique_tags.append(tag)
-            
-            # Add some basic tags if none found
-            if not unique_tags:
-                unique_tags = ['image']
-            
-            return unique_tags, caption
+                # Generate caption
+                inputs = self.processor(img, return_tensors="pt")
+                out = self.model.generate(**inputs, max_length=50)
+                caption = self.processor.decode(out[0], skip_special_tokens=True)
+                
+                # Split caption into words and clean them
+                words = caption.lower().split()
+                tags = []
+                
+                for word in words:
+                    # Remove punctuation from word
+                    clean_word = ''.join(char for char in word if char.isalnum())
+                    
+                    # Skip if word is too short, too long, or in stopwords
+                    if (len(clean_word) >= 3 and 
+                        len(clean_word) <= 20 and 
+                        clean_word not in self.stopwords and
+                        clean_word.isalpha()):  # Only alphabetic characters
+                        tags.append(clean_word)
+                
+                # Remove duplicates while preserving order
+                seen = set()
+                unique_tags = []
+                for tag in tags:
+                    if tag not in seen:
+                        seen.add(tag)
+                        unique_tags.append(tag)
+                
+                # Add some basic tags if none found
+                if not unique_tags:
+                    unique_tags = ['image']
+                
+                return unique_tags, caption
             
         except Exception as e:
-            print(f"Error generating caption: {e}")
+            print(f"Error generating caption for {image_path}: {e}")
             return ["image"], "An image file"
     
     def process_single_image(self, image_path, output_dir):
@@ -209,18 +252,19 @@ class ImageProcessor:
             return None
     
     def process_folder(self, folder_path, job_id, processing_jobs):
-        """Process all images in a folder using Daft"""
+        """Process all images in a folder using Daft for bulk operations"""
         try:
             # Update job status
             processing_jobs[job_id]['status'] = 'discovering'
             
             # Find all images using Daft
             print(f"Discovering images in {folder_path}...")
-            image_files = self.find_images(folder_path)
+            df_images = self.find_images(folder_path)
             
+            # Convert to Python list to get count
+            image_files = df_images.collect()
             total_images = len(image_files)
             processing_jobs[job_id]['total_images'] = total_images
-            processing_jobs[job_id]['status'] = 'processing'
             
             if total_images == 0:
                 processing_jobs[job_id]['status'] = 'completed'
@@ -228,22 +272,94 @@ class ImageProcessor:
                 return
             
             print(f"Found {total_images} images to process")
+            processing_jobs[job_id]['status'] = 'processing'
             
             # Create output directory
             output_dir = 'processed_images'
             os.makedirs(output_dir, exist_ok=True)
             
-            # Process images
+            # Use Daft to bulk resize images with built-in functions
+            print("Bulk resizing images with Daft's built-in resizer...")
+            
+            # First read the files as binary data
+            df_images = df_images.with_column(
+                "file_data",
+                daft.col("path").url.download()
+            )
+            
+            # Then decode as images
+            df_images = df_images.with_column(
+                "image_data",
+                daft.col("file_data").image.decode()
+            )
+            
+            # Resize images using Daft's built-in resizer
+            target_size = (224, 224)
+            df_images = df_images.with_column(
+                "resized_image",
+                daft.col("image_data").image.resize(target_size[0], target_size[1])
+            )
+            
+            # Save resized images and process tags/captions
+            resized_results = df_images.collect()
+            
+            print("Generating AI tags and captions...")
             processed_images = []
             
-            for i, row in enumerate(image_files):
-                uri_path = row['path']
-                image_path = self.convert_uri_to_path(uri_path)  # Convert URI to file path
-                print(f"Processing {i+1}/{total_images}: {image_path}")
-                
-                image_data = self.process_single_image(image_path, output_dir)
-                if image_data:
+            for i, row in enumerate(resized_results):
+                try:
+                    # Convert URI to local path
+                    local_path = self.convert_uri_to_path(row['path'])
+                    filename = os.path.basename(local_path)
+                    name, ext = os.path.splitext(filename)
+                    image_hash = hashlib.md5(local_path.encode()).hexdigest()[:8]
+                    processed_filename = f"{name}_{image_hash}.jpg"
+                    processed_path = os.path.join(output_dir, processed_filename)
+                    
+                    # Convert numpy array to PIL image
+                    resized_array = row['resized_image']
+                    if hasattr(resized_array, 'to_pil'):
+                        # If it's a Daft image object
+                        pil_image = resized_array.to_pil()
+                    else:
+                        # If it's a numpy array
+                        import numpy as np
+                        if isinstance(resized_array, np.ndarray):
+                            # Convert numpy array to PIL Image
+                            # Ensure the array is in the right format (uint8, RGB)
+                            if resized_array.dtype != np.uint8:
+                                resized_array = (resized_array * 255).astype(np.uint8)
+                            pil_image = Image.fromarray(resized_array)
+                        else:
+                            # Fallback to original image processing
+                            print(f"Unexpected image format for {filename}, falling back to PIL resize")
+                            with Image.open(local_path) as img:
+                                if img.mode != 'RGB':
+                                    img = img.convert('RGB')
+                                pil_image = img.resize(target_size, Image.Resampling.LANCZOS)
+                    
+                    pil_image.save(processed_path, 'JPEG', quality=85)
+                    
+                    # Generate tags and caption
+                    tags, caption = self.generate_tags_and_caption(processed_path)
+                    
+                    # Get file stats
+                    file_stats = os.stat(local_path)
+                    
+                    image_data = {
+                        'id': image_hash,
+                        'filename': filename,
+                        'original_path': local_path,
+                        'processed_path': processed_filename,
+                        'file_size': file_stats.st_size,
+                        'created_date': datetime.fromtimestamp(file_stats.st_mtime).isoformat(),
+                        'tags': tags,
+                        'caption': caption,
+                        'processed_date': datetime.now().isoformat()
+                    }
                     processed_images.append(image_data)
+                except Exception as e:
+                    print(f"Skipping failed image: {row.get('path', 'unknown')} - {e}")
                 
                 # Update progress
                 processing_jobs[job_id]['processed_images'] = i + 1
@@ -254,7 +370,8 @@ class ImageProcessor:
                 'metadata': {
                     'processed_date': datetime.now().isoformat(),
                     'source_folder': folder_path,
-                    'total_images': len(processed_images)
+                    'total_images': len(processed_images),
+                    'failed_images': total_images - len(processed_images)
                 },
                 'images': processed_images
             }
@@ -271,7 +388,7 @@ class ImageProcessor:
             processing_jobs[job_id]['output_file'] = json_path
             processing_jobs[job_id]['successful_images'] = len(processed_images)
             
-            print(f"Processing completed! Processed {len(processed_images)} images")
+            print(f"Processing completed! Successfully processed {len(processed_images)} images")
             
         except Exception as e:
             print(f"Error in process_folder: {e}")
