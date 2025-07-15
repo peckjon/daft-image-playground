@@ -30,7 +30,7 @@ The three Daft features that really shine in this project are:
 This image search tool demonstrates how these capabilities come together. The application discovers images in local folders, processes them through AI models for automatic captioning and tagging, then creates a searchable web interface. Here's where Daft eliminated entire categories of complexity:
 
 - **No manual file system traversal** – Daft's glob patterns handle recursive file discovery: [image_processor.py#L40](https://github.com/peckjon/daft-image-playground/blob/main/image_processor.py#L40)
-- **No individual image resize operations** – Daft's bulk image pipeline processes everything in parallel (no sequential Pillow operations!):[image_processor.py#L135](https://github.com/peckjon/daft-image-playground/blob/main/image_processor.py#L135)
+- **No individual image resize operations** – Daft's bulk image pipeline processes everything in parallel (no sequential Pillow operations!): [image_processor.py#L135](https://github.com/peckjon/daft-image-playground/blob/main/image_processor.py#L135)
 - **No complex JSON parsing for search** – SQL queries over structured data feel natural and performant: [app.py#L95-L106](https://github.com/peckjon/daft-image-playground/blob/main/app.py#L95-L106)
 - **No manual parallelization** – Daft handles efficient resource utilization automatically: [image_processor.py#L132](https://github.com/peckjon/daft-image-playground/blob/main/image_processor.py#L132)
 
