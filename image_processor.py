@@ -19,7 +19,7 @@ class ImageProcessor:
         """Load the BLIP model for image captioning"""
         try:
             print("Loading BLIP model for image recognition...")
-            self.processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-base")
+            self.processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-base", use_fast=False)
             self.model = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image-captioning-base")
             print("Model loaded successfully!")
         except Exception as e:
