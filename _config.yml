@@ -1,3 +1,6 @@
+# GitHub Pages configuration - for documentation site only
+# This file does not affect the Flask application functionality
+
 theme: jekyll-theme-slate
 google_analytics: true
 show_downloads: false

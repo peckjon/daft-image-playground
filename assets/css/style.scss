@@ -1,6 +1,9 @@
 ---
 ---
 
+// GitHub Pages styling override - does not affect the Flask application
+// This file customizes the Jekyll theme for the documentation site only
+
 @import "{{ site.theme }}";
 
 .inner {
