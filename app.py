@@ -6,6 +6,7 @@ from datetime import datetime
 import threading
 import daft
 from image_processor import ImageProcessor
+import shutil
 
 print("🚀 Starting Daft Image Search Tool...")
 
@@ -168,16 +169,12 @@ def reset_library():
     """Reset the image library by clearing all processed data"""
     # Remove JSON file
     json_path = os.path.join(app.config['UPLOAD_FOLDER'], 'processed_images.json')
-    if os.path.exists(json_path):
-        os.remove(json_path)
+    os.remove(json_path) if os.path.exists(json_path) else None
     
-    # Clear processed images
+    # Clear processed images directory
     processed_dir = app.config['PROCESSED_IMAGES']
-    if os.path.exists(processed_dir):
-        for filename in os.listdir(processed_dir):
-            file_path = os.path.join(processed_dir, filename)
-            if os.path.isfile(file_path):
-                os.remove(file_path)
+    shutil.rmtree(processed_dir, ignore_errors=True)
+    os.makedirs(processed_dir, exist_ok=True)
     
     return jsonify({'message': 'Image library reset successfully'})
 
