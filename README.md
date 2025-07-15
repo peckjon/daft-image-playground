@@ -32,6 +32,7 @@ https://github.com/user-attachments/assets/71fce0b2-e37e-4a4d-8649-336ced5a42f6
 1. **Clone or download this repository**
 2. **Run the setup script:**
    ```bash
+   chmod +x setup.sh
    ./setup.sh
    ```
 
@@ -94,10 +95,10 @@ https://github.com/user-attachments/assets/71fce0b2-e37e-4a4d-8649-336ced5a42f6
       "original_path": "/full/path/photo.jpg",
       "processed_path": "photo_abc123.jpg",
       "file_size": 1024576,
-      "created_date": "2025-07-14T10:30:00Z",
+      "created_date": "2025-07-14T10:30:00",
       "tags": ["outdoor", "landscape", "mountains"],
       "caption": "A beautiful mountain landscape",
-      "processed_date": "2025-07-14T15:45:00Z"
+      "processed_date": "2025-07-14T15:45:00"
     }
   ]
 }
@@ -141,9 +142,10 @@ daft-image-playground/
 ## Performance Notes
 
 - **First Run**: Model download may take 2-5 minutes
-- **Processing Speed**: ~1-5 images per second (depending on hardware)
+- **Processing Speed**: Varies by hardware and image size
 - **Memory Usage**: ~2-4GB during processing
 - **Storage**: Processed images are ~50KB each (224x224 JPEG)
+- **Model Size**: ~1GB
 
 ## Troubleshooting
 
@@ -175,7 +177,7 @@ daft-image-playground/
 
 ## Development
 
-### Adding New Features
+### Interested in taking this further? A few suggestions:
 
 **Custom Image Models:**
 - Replace BLIP model in `image_processor.py`
@@ -192,8 +194,8 @@ daft-image-playground/
 ### Dependencies
 
 - **Daft.ai**: Distributed data processing
-- **Flask**: Web framework
 - **Transformers**: Hugging Face model library
+- **Flask**: Web framework
 - **Bootstrap**: UI framework
 
 ## License
@@ -207,14 +209,6 @@ MIT License allows you to:
 - ✅ Use patents
 
 The only requirement is to include the original copyright notice.
-
-## Contributing
-
-Contributions welcome! Please:
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Submit a pull request
 
 ---
 
