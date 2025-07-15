@@ -7,21 +7,18 @@ import threading
 from image_processor import ImageProcessor
 
 print("🚀 Starting Daft Image Search Tool...")
-print("📦 Initializing Flask application...")
 
 app = Flask(__name__)
-app.config['UPLOAD_FOLDER'] = 'data'
-app.config['PROCESSED_IMAGES'] = 'processed_images'
+app.config.update({
+    'UPLOAD_FOLDER': 'data',
+    'PROCESSED_IMAGES': 'processed_images'
+})
 
-print("📁 Creating necessary directories...")
-# Create necessary directories
-os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-os.makedirs(app.config['PROCESSED_IMAGES'], exist_ok=True)
-os.makedirs('static', exist_ok=True)
-os.makedirs('templates', exist_ok=True)
+# Create directories
+for folder in ['data', 'processed_images', 'static', 'templates']:
+    os.makedirs(folder, exist_ok=True)
 
-print("🤖 Initializing AI image processor (this may take a moment)...")
-# Global variables for job tracking
+print("🤖 Initializing AI image processor...")
 processing_jobs = {}
 image_processor = ImageProcessor()
 
@@ -36,16 +33,12 @@ def library():
 @app.route('/api/process', methods=['POST'])
 def process_images():
     """Start processing images from a specified folder"""
-    data = request.json
-    folder_path = data.get('folder_path')
+    folder_path = request.json.get('folder_path')
     
     if not folder_path or not os.path.exists(folder_path):
         return jsonify({'error': 'Invalid folder path'}), 400
     
-    # Create a unique job ID
     job_id = str(uuid.uuid4())
-    
-    # Initialize job status
     processing_jobs[job_id] = {
         'status': 'started',
         'progress': 0,
@@ -55,12 +48,11 @@ def process_images():
         'folder_path': folder_path
     }
     
-    # Start processing in a separate thread
     thread = threading.Thread(
         target=image_processor.process_folder,
-        args=(folder_path, job_id, processing_jobs)
+        args=(folder_path, job_id, processing_jobs),
+        daemon=True
     )
-    thread.daemon = True
     thread.start()
     
     return jsonify({'job_id': job_id, 'status': 'started'})
@@ -70,72 +62,58 @@ def get_job_status(job_id):
     """Get the status of a processing job"""
     if job_id not in processing_jobs:
         return jsonify({'error': 'Job not found'}), 404
-    
     return jsonify(processing_jobs[job_id])
+
+def load_processed_images():
+    """Helper to load processed images JSON"""
+    json_path = os.path.join(app.config['UPLOAD_FOLDER'], 'processed_images.json')
+    if not os.path.exists(json_path):
+        return None
+    
+    try:
+        with open(json_path, 'r') as f:
+            return json.load(f)
+    except Exception:
+        return None
 
 @app.route('/api/search', methods=['POST'])
 def search_images():
     """Search for images based on text query"""
-    data = request.json
-    query = data.get('query', '').strip()
+    query = request.json.get('query', '').strip()
     
     if not query:
         return jsonify({'error': 'Query is required'}), 400
     
-    # Load the processed images data
-    json_file_path = os.path.join(app.config['UPLOAD_FOLDER'], 'processed_images.json')
-    
-    if not os.path.exists(json_file_path):
+    data = load_processed_images()
+    if not data:
         return jsonify({'results': [], 'message': 'No processed images found'})
     
-    try:
-        with open(json_file_path, 'r') as f:
-            data = json.load(f)
+    query_lower = query.lower()
+    results = []
+    
+    for image_data in data.get('images', []):
+        tags = image_data.get('tags', [])
+        filename = image_data.get('filename', '')
         
-        # Simple text search in tags and descriptions
-        results = []
-        query_lower = query.lower()
-        
-        for image_data in data.get('images', []):
-            # Search in tags
-            tags = image_data.get('tags', [])
-            tag_match = any(query_lower in tag.lower() for tag in tags)
-            
-            # Search in filename
-            filename_match = query_lower in image_data.get('filename', '').lower()
-            
-            if tag_match or filename_match:
-                results.append(image_data)
-        
-        return jsonify({
-            'results': results,
-            'total': len(results),
-            'query': query
-        })
-        
-    except Exception as e:
-        return jsonify({'error': f'Search failed: {str(e)}'}), 500
+        if (any(query_lower in tag.lower() for tag in tags) or 
+            query_lower in filename.lower()):
+            results.append(image_data)
+    
+    return jsonify({
+        'results': results,
+        'total': len(results),
+        'query': query
+    })
 
 @app.route('/api/images')
 def list_images():
     """Get all processed images"""
-    json_file_path = os.path.join(app.config['UPLOAD_FOLDER'], 'processed_images.json')
-    
-    if not os.path.exists(json_file_path):
+    data = load_processed_images()
+    if not data:
         return jsonify({'images': [], 'total': 0})
     
-    try:
-        with open(json_file_path, 'r') as f:
-            data = json.load(f)
-        
-        images = data.get('images', [])
-        return jsonify({
-            'images': images,
-            'total': len(images)
-        })
-        
-    except Exception as e:
-        return jsonify({'error': f'Failed to load images: {str(e)}'}), 500
+    images = data.get('images', [])
+    return jsonify({'images': images, 'total': len(images)})
 
 @app.route('/processed_images/<filename>')
 def serve_processed_image(filename):
@@ -146,12 +124,12 @@ def serve_processed_image(filename):
 def reset_library():
     """Reset the image library by clearing all processed data"""
     try:
-        # Remove the JSON file
-        json_file_path = os.path.join(app.config['UPLOAD_FOLDER'], 'processed_images.json')
-        if os.path.exists(json_file_path):
-            os.remove(json_file_path)
+        # Remove JSON file
+        json_path = os.path.join(app.config['UPLOAD_FOLDER'], 'processed_images.json')
+        if os.path.exists(json_path):
+            os.remove(json_path)
         
-        # Clear the processed images directory
+        # Clear processed images
         processed_dir = app.config['PROCESSED_IMAGES']
         if os.path.exists(processed_dir):
             for filename in os.listdir(processed_dir):
@@ -165,10 +143,5 @@ def reset_library():
         return jsonify({'error': f'Failed to reset library: {str(e)}'}), 500
 
 if __name__ == '__main__':
-    print("✅ Initialization complete!")
-    print("🌐 Starting Flask web server...")
-    print("📡 Server will be available at: http://localhost:8000")
-    print("📱 Or access from other devices at: http://0.0.0.0:8000")
-    print("🔧 Running in debug mode - changes will auto-reload")
-    print("-" * 50)
+    print("✅ Server starting at http://localhost:8000")
     app.run(debug=True, host='0.0.0.0', port=8000)
