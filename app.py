@@ -93,19 +93,20 @@ def search_images():
     
     # Explode tags for searching
     df_exploded = df.explode(daft.col("tags"))
-    
-    # Get IDs that match in tags only
-    tag_ids_sql = f"""
+
+    # Get IDs that match in both tags and filename
+    combined_search_sql = f"""
     SELECT DISTINCT id
     FROM df_exploded
     WHERE LOWER(tags) LIKE '%{query_lower}%'
+       OR LOWER(filename) LIKE '%{query_lower}%'
     """
-    
+
     # Execute query to get matching IDs
-    tag_ids = daft.sql(tag_ids_sql).to_pylist()
-    
+    matching_ids_result = daft.sql(combined_search_sql).to_pylist()
+
     # Get matching IDs
-    matching_ids = [row['id'] for row in tag_ids]
+    matching_ids = [row['id'] for row in matching_ids_result]
     
     # Filter original DataFrame to get results with proper tags array
     if matching_ids:
