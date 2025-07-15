@@ -1,8 +1,45 @@
-# Daft Image Search Tool
-
-An intelligent image search application that uses AI to automatically tag and make images searchable. Built with Daft.ai for efficient data processing, Flask for the backend, and a modern web interface.
-
 https://github.com/user-attachments/assets/71fce0b2-e37e-4a4d-8649-336ced5a42f6
+
+# Building an AI-Powered Image Search Engine with Daft: A Mini Case Study
+
+Back when ML models mainly lived on self-hosted servers instead of smartphones, I spent a few years with [Algorithmia](https://github.com/algorithmiaio), building some of the first and best ML (now "AI") hosting services. Many of my days were spent deep in the trenches with Python datascientists, churning through Jupyter notebooks, optimizing their algorithms to run in ephemeral serverless environments. Those were the days when data transformation pipelines required complex orchestration of multiple tools, custom scripts for every file format, and endless debugging of memory issues and race conditions.
+
+Fast-forward to today: after years focused on DevOps and other areas of software development, I've been itching to get back into data science – and wow, the modern landscape is a revelation. Enter [Daft](https://daft.ai): a distributed Python dataframe library designed to handle complex data workloads with the elegance of Pandas but the power to scale. What caught my attention wasn't just another dataframe library, but Daft's native support for multimodal data processing and SQL-based query capabilities. This felt like the perfect opportunity to build something practical while exploring what makes Daft exciting.
+
+## Why Daft is Worth Your Attention
+
+Daft represents a significant step forward in data processing, especially for teams working with unstructured data. Unlike traditional dataframes that treat multimedia as mere file paths, Daft can natively decode, process, and manipulate images directly within its processing pipeline. This means you can resize thousands of images, extract features, or run ML inference – all using familiar dataframe operations that can scale across multiple cores or even distributed clusters.
+
+Structured data gets an upgrade, too! Daft's built-in support for SQL queries works across nonrelational data, such as JSON... so those of us who grew up writing SQL92 feel just as comfortable querying a wide variety of formats.
+
+The three Daft features that really shine in this project are:
+
+**🔍 [Image Discovery & File Processing](https://docs.getdaft.io/en/stable/api/io/#daft.from_glob_path)**: Using `daft.from_glob_path()`, we can recursively discover image files across directory structures with built-in filtering by extension. No more writing custom directory traversal code or managing file system complexity.
+
+**⚡ [Bulk Image Processing](https://docs.getdaft.io/en/stable/api/expressions/#daft.expressions.expressions.ExpressionImageNamespace)**: Daft's native image operations let us chain `.image.decode()`, `.image.resize()`, and `.image.encode()` in a single pipeline. This means processing thousands of photos happens in parallel without having to manually manage Pillow operations, threading, or memory concerns.
+
+**📊 [SQL Query over JSON](https://docs.getdaft.io/en/stable/sql_overview/)**: Once our image metadata is processed, Daft's SQL interface `daft.sql()` lets us write SQL queries directly over our JSON data structures, including complex operations like array explosions for tag searching.
+
+## What We Built Together
+
+This image search tool demonstrates how these capabilities come together. The application discovers images in local folders, processes them through AI models for automatic captioning and tagging, then creates a searchable web interface. Here's where Daft eliminated entire categories of complexity:
+
+- **No manual file system traversal** – Daft's glob patterns handle recursive directory discovery
+- **No individual image resize operations** – Daft's bulk image pipeline processes everything in parallel  (no sequential Pillow operations!)
+- **No complex JSON parsing for search** – SQL queries over structured data feel natural and performant
+- **No manual parallelization** – Daft handles efficient resource utilization automatically
+
+The result? Clean, readable code that focuses on business logic rather than infrastructure concerns.
+
+## Development Notes & Caveats
+
+Full transparency: while the initial code generation was aided by GitHub Copilot and Claude Sonnet 4 (you can see the original prompt in [PRD.md](PRD.md) – itself pair-generated with Copilot's help), the real work happened in the development iterations. AI tools are incredibly powerful accelerators, but they work best when guided by an experienced developer who understands the problem domain and can refine the generated solutions.
+
+**Important**: This is a demo application only and should not be used unmodified in a production environment. It may contain security vulnerabilities and is optimized for simplicity and compatibility, not efficiency. For example, the BLIP model used for image captioning is a few years old and not state-of-the-art – I chose it for its reliability and broad compatibility rather than cutting-edge performance.
+
+This project showcases only a tiny slice of [Daft's capabilities](https://daft.ai). The framework supports everything from distributed computing across cloud infrastructure to advanced ML workloads with GPU acceleration. If you're dealing with large-scale data processing, multimedia pipelines, or looking to modernize your data infrastructure, there's a lot more to explore.
+
+---
 
 ## Features
 
