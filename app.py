@@ -4,6 +4,7 @@ import json
 import uuid
 from datetime import datetime
 import threading
+import daft
 from image_processor import ImageProcessor
 
 print("🚀 Starting Daft Image Search Tool...")
@@ -70,15 +71,12 @@ def load_processed_images():
     if not os.path.exists(json_path):
         return None
     
-    try:
-        with open(json_path, 'r') as f:
-            return json.load(f)
-    except Exception:
-        return None
+    with open(json_path, 'r') as f:
+        return json.load(f)
 
 @app.route('/api/search', methods=['POST'])
 def search_images():
-    """Search for images based on text query"""
+    """Search for images based on text query using Daft"""
     query = request.json.get('query', '').strip()
     
     if not query:
@@ -88,16 +86,54 @@ def search_images():
     if not data:
         return jsonify({'results': [], 'message': 'No processed images found'})
     
-    query_lower = query.lower()
-    results = []
+    # Create Daft DataFrame from processed images
+    df = daft.from_pylist(data.get('images', []))
     
-    for image_data in data.get('images', []):
-        tags = image_data.get('tags', [])
-        filename = image_data.get('filename', '')
-        
-        if (any(query_lower in tag.lower() for tag in tags) or 
-            query_lower in filename.lower()):
-            results.append(image_data)
+    if len(df) == 0:
+        return jsonify({'results': [], 'message': 'No processed images found'})
+    
+    query_lower = query.lower()
+    
+    # Collect all matching IDs from different searches
+    matching_ids = set()
+    
+    # Search in tags - explode tags array and filter
+    df_tags = df.explode(daft.col("tags"))
+    df_tag_matches = df_tags.where(
+        daft.col("tags").str.lower().str.contains(query_lower)
+    ).collect()
+    # Get IDs from tag matches
+    if len(df_tag_matches) > 0:
+        tag_ids = df_tag_matches.select("id").to_pylist()
+        matching_ids.update([row["id"] for row in tag_ids])
+    
+    # Search in filenames
+    df_filename_matches = df.where(
+        daft.col("filename").str.lower().str.contains(query_lower)
+    ).collect()
+    # Get IDs from filename matches
+    if len(df_filename_matches) > 0:
+        filename_ids = df_filename_matches.select("id").to_pylist()
+        matching_ids.update([row["id"] for row in filename_ids])
+    
+    # Search in captions
+    df_caption_matches = df.where(
+        daft.col("caption").str.lower().str.contains(query_lower)
+    ).collect()
+    # Get IDs from caption matches
+    if len(df_caption_matches) > 0:
+        caption_ids = df_caption_matches.select("id").to_pylist()
+        matching_ids.update([row["id"] for row in caption_ids])
+    
+    # Filter original DataFrame to get all matches with consistent schema
+    if matching_ids:
+        all_matches = df.where(daft.col("id").is_in(list(matching_ids)))
+    else:
+        # Create empty DataFrame with same schema
+        all_matches = df.where(daft.lit(False))
+    
+    # Convert to Python objects for JSON serialization
+    results = all_matches.to_pylist()
     
     return jsonify({
         'results': results,
@@ -107,12 +143,19 @@ def search_images():
 
 @app.route('/api/images')
 def list_images():
-    """Get all processed images"""
+    """Get all processed images using Daft"""
     data = load_processed_images()
     if not data:
         return jsonify({'images': [], 'total': 0})
     
-    images = data.get('images', [])
+    # Use Daft to handle the data
+    df = daft.from_pylist(data.get('images', []))
+    
+    # Sort by processed_date (most recent first)
+    df = df.sort(daft.col("processed_date"), desc=True)
+    
+    # Convert to Python objects for JSON serialization
+    images = df.to_pylist()
     return jsonify({'images': images, 'total': len(images)})
 
 @app.route('/processed_images/<filename>')
@@ -123,24 +166,20 @@ def serve_processed_image(filename):
 @app.route('/api/reset', methods=['POST'])
 def reset_library():
     """Reset the image library by clearing all processed data"""
-    try:
-        # Remove JSON file
-        json_path = os.path.join(app.config['UPLOAD_FOLDER'], 'processed_images.json')
-        if os.path.exists(json_path):
-            os.remove(json_path)
-        
-        # Clear processed images
-        processed_dir = app.config['PROCESSED_IMAGES']
-        if os.path.exists(processed_dir):
-            for filename in os.listdir(processed_dir):
-                file_path = os.path.join(processed_dir, filename)
-                if os.path.isfile(file_path):
-                    os.remove(file_path)
-        
-        return jsonify({'message': 'Image library reset successfully'})
-        
-    except Exception as e:
-        return jsonify({'error': f'Failed to reset library: {str(e)}'}), 500
+    # Remove JSON file
+    json_path = os.path.join(app.config['UPLOAD_FOLDER'], 'processed_images.json')
+    if os.path.exists(json_path):
+        os.remove(json_path)
+    
+    # Clear processed images
+    processed_dir = app.config['PROCESSED_IMAGES']
+    if os.path.exists(processed_dir):
+        for filename in os.listdir(processed_dir):
+            file_path = os.path.join(processed_dir, filename)
+            if os.path.isfile(file_path):
+                os.remove(file_path)
+    
+    return jsonify({'message': 'Image library reset successfully'})
 
 if __name__ == '__main__':
     print("✅ Server starting at http://localhost:8000")
