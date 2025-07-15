@@ -122,14 +122,6 @@ class ImageProcessor:
             # Add batch dimension
             image_tensor = image_tensor.unsqueeze(0)
             
-            # Apply BLIP preprocessing (resize to expected size, normalize)
-            # BLIP expects specific preprocessing, so we'll use the processor's image normalization
-            # But first we need to ensure the tensor is the right size
-            if image_tensor.shape[-2:] != (224, 224):
-                # Resize using torch interpolation
-                import torch.nn.functional as F
-                image_tensor = F.interpolate(image_tensor, size=(224, 224), mode='bilinear', align_corners=False)
-            
             # Normalize using BLIP's expected values (ImageNet normalization)
             mean = torch.tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1)
             std = torch.tensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1)
