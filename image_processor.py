@@ -1,13 +1,13 @@
 import daft
 import os
 import json
-from PIL import Image
 import torch
 from transformers import BlipProcessor, BlipForConditionalGeneration
 from datetime import datetime
 import hashlib
 from urllib.parse import urlparse
 import requests
+import numpy as np
 
 class ImageProcessor:
     def __init__(self):
@@ -95,161 +95,83 @@ class ImageProcessor:
             return parsed.path
         return uri_path
     
-    def resize_image_udf(self, image_path, target_size=(224, 224)):
-        """UDF function to resize a single image for Daft bulk processing"""
-        try:
-            # Convert URI to path if needed
-            local_path = self.convert_uri_to_path(image_path)
-            
-            with Image.open(local_path) as img:
-                # Convert to RGB if necessary
-                if img.mode != 'RGB':
-                    img = img.convert('RGB')
-                
-                # Resize with aspect ratio preservation
-                img.thumbnail(target_size, Image.Resampling.LANCZOS)
-                
-                # Create a new image with the target size and paste the resized image
-                new_img = Image.new('RGB', target_size, (255, 255, 255))
-                
-                # Calculate position to center the image
-                x = (target_size[0] - img.width) // 2
-                y = (target_size[1] - img.height) // 2
-                
-                new_img.paste(img, (x, y))
-                
-                # Generate output filename
-                filename = os.path.basename(local_path)
-                name, ext = os.path.splitext(filename)
-                image_hash = hashlib.md5(local_path.encode()).hexdigest()[:8]
-                processed_filename = f"{name}_{image_hash}.jpg"
-                
-                # Create output directory if it doesn't exist
-                output_dir = 'processed_images'
-                os.makedirs(output_dir, exist_ok=True)
-                processed_path = os.path.join(output_dir, processed_filename)
-                
-                # Save resized image
-                new_img.save(processed_path, 'JPEG', quality=85)
-                
-                # Get file stats
-                file_stats = os.stat(local_path)
-                
-                return {
-                    'original_path': local_path,
-                    'processed_filename': processed_filename,
-                    'processed_path': processed_path,
-                    'filename': filename,
-                    'file_size': file_stats.st_size,
-                    'created_date': datetime.fromtimestamp(file_stats.st_mtime).isoformat(),
-                    'image_hash': image_hash,
-                    'success': True,
-                    'error': None
-                }
-                
-        except Exception as e:
-            print(f"Error resizing image {image_path}: {e}")
-            return {
-                'original_path': image_path,
-                'processed_filename': None,
-                'processed_path': None,
-                'filename': os.path.basename(image_path) if isinstance(image_path, str) else 'unknown',
-                'file_size': 0,
-                'created_date': datetime.now().isoformat(),
-                'image_hash': None,
-                'success': False,
-                'error': str(e)
-            }
-    
-    def generate_tags_and_caption(self, image_path):
-        """Generate tags and caption for an image using BLIP model"""
+    def generate_tags_and_caption_from_array(self, image_array):
+        """Generate tags and caption for a numpy image array using BLIP model"""
         if self.model is None or self.processor is None:
             # Fallback to basic tags if model is not loaded
             return ["image"], "An image file"
         
         try:
-            # Load and process image
-            with Image.open(image_path) as img:
-                if img.mode != 'RGB':
-                    img = img.convert('RGB')
-                
-                # Generate caption
-                inputs = self.processor(img, return_tensors="pt")
-                out = self.model.generate(**inputs, max_length=50)
-                caption = self.processor.decode(out[0], skip_special_tokens=True)
-                
-                # Split caption into words and clean them
-                words = caption.lower().split()
-                tags = []
-                
-                for word in words:
-                    # Remove punctuation from word
-                    clean_word = ''.join(char for char in word if char.isalnum())
-                    
-                    # Skip if word is too short, too long, or in stopwords
-                    if (len(clean_word) >= 3 and 
-                        len(clean_word) <= 20 and 
-                        clean_word not in self.stopwords and
-                        clean_word.isalpha()):  # Only alphabetic characters
-                        tags.append(clean_word)
-                
-                # Remove duplicates while preserving order
-                seen = set()
-                unique_tags = []
-                for tag in tags:
-                    if tag not in seen:
-                        seen.add(tag)
-                        unique_tags.append(tag)
-                
-                # Add some basic tags if none found
-                if not unique_tags:
-                    unique_tags = ['image']
-                
-                return unique_tags, caption
+            # Ensure we have a proper numpy array
+            if not isinstance(image_array, np.ndarray):
+                print(f"Expected numpy array, got {type(image_array)}")
+                return ["image"], "An image file"
             
+            # For BLIP, we need to create a tensor directly from numpy array
+            # Convert numpy array to the format BLIP expects
+            if image_array.dtype != np.uint8:
+                image_array = (image_array * 255).astype(np.uint8)
+            
+            # Convert to float and normalize to [0, 1] for BLIP
+            image_tensor = torch.from_numpy(image_array).float() / 255.0
+            
+            # Rearrange dimensions from HWC to CHW for BLIP
+            if len(image_tensor.shape) == 3:
+                image_tensor = image_tensor.permute(2, 0, 1)
+            
+            # Add batch dimension
+            image_tensor = image_tensor.unsqueeze(0)
+            
+            # Apply BLIP preprocessing (resize to expected size, normalize)
+            # BLIP expects specific preprocessing, so we'll use the processor's image normalization
+            # But first we need to ensure the tensor is the right size
+            if image_tensor.shape[-2:] != (224, 224):
+                # Resize using torch interpolation
+                import torch.nn.functional as F
+                image_tensor = F.interpolate(image_tensor, size=(224, 224), mode='bilinear', align_corners=False)
+            
+            # Normalize using BLIP's expected values (ImageNet normalization)
+            mean = torch.tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1)
+            std = torch.tensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1)
+            image_tensor = (image_tensor - mean) / std
+            
+            # Generate caption using tensor directly
+            inputs = {"pixel_values": image_tensor}
+            out = self.model.generate(**inputs, max_length=50)
+            caption = self.processor.decode(out[0], skip_special_tokens=True)
+            
+            # Split caption into words and clean them
+            words = caption.lower().split()
+            tags = []
+            
+            for word in words:
+                # Remove punctuation from word
+                clean_word = ''.join(char for char in word if char.isalnum())
+                
+                # Skip if word is too short, too long, or in stopwords
+                if (len(clean_word) >= 3 and 
+                    len(clean_word) <= 20 and 
+                    clean_word not in self.stopwords and
+                    clean_word.isalpha()):  # Only alphabetic characters
+                    tags.append(clean_word)
+            
+            # Remove duplicates while preserving order
+            seen = set()
+            unique_tags = []
+            for tag in tags:
+                if tag not in seen:
+                    seen.add(tag)
+                    unique_tags.append(tag)
+            
+            # Add some basic tags if none found
+            if not unique_tags:
+                unique_tags = ['image']
+            
+            return unique_tags, caption
+        
         except Exception as e:
-            print(f"Error generating caption for {image_path}: {e}")
+            print(f"Error generating caption: {e}")
             return ["image"], "An image file"
-    
-    def process_single_image(self, image_path, output_dir):
-        """Process a single image: resize, generate caption and tags"""
-        try:
-            # Generate unique filename for processed image
-            image_hash = hashlib.md5(image_path.encode()).hexdigest()[:8]
-            filename = os.path.basename(image_path)
-            name, ext = os.path.splitext(filename)
-            processed_filename = f"{name}_{image_hash}.jpg"
-            processed_path = os.path.join(output_dir, processed_filename)
-            
-            # Resize image
-            resized_image = self.resize_image(image_path)
-            if resized_image is None:
-                return None
-            
-            # Save resized image
-            resized_image.save(processed_path, 'JPEG', quality=85)
-            
-            # Generate tags and caption
-            tags, caption = self.generate_tags_and_caption(resized_image)
-            
-            # Get file stats
-            file_stats = os.stat(image_path)
-            
-            return {
-                'id': image_hash,
-                'filename': filename,
-                'original_path': image_path,
-                'processed_path': processed_filename,
-                'file_size': file_stats.st_size,
-                'created_date': datetime.fromtimestamp(file_stats.st_mtime).isoformat(),
-                'tags': tags,
-                'caption': caption,
-                'processed_date': datetime.now().isoformat()
-            }
-            
-        except Exception as e:
-            print(f"Error processing image {image_path}: {e}")
-            return None
     
     def process_folder(self, folder_path, job_id, processing_jobs):
         """Process all images in a folder using Daft for bulk operations"""
@@ -300,10 +222,16 @@ class ImageProcessor:
                 daft.col("image_data").image.resize(target_size[0], target_size[1])
             )
             
-            # Save resized images and process tags/captions
+            # Encode resized images back to JPEG bytes for saving
+            df_images = df_images.with_column(
+                "encoded_image",
+                daft.col("resized_image").image.encode("JPEG")
+            )
+            
+            # Collect results
             resized_results = df_images.collect()
             
-            print("Generating AI tags and captions...")
+            print("Saving resized images and generating AI tags...")
             processed_images = []
             
             for i, row in enumerate(resized_results):
@@ -316,32 +244,14 @@ class ImageProcessor:
                     processed_filename = f"{name}_{image_hash}.jpg"
                     processed_path = os.path.join(output_dir, processed_filename)
                     
-                    # Convert numpy array to PIL image
+                    # Save the encoded JPEG bytes to file
+                    encoded_bytes = row['encoded_image']
+                    with open(processed_path, 'wb') as f:
+                        f.write(encoded_bytes)
+                    
+                    # Generate tags and caption using the resized image array directly
                     resized_array = row['resized_image']
-                    if hasattr(resized_array, 'to_pil'):
-                        # If it's a Daft image object
-                        pil_image = resized_array.to_pil()
-                    else:
-                        # If it's a numpy array
-                        import numpy as np
-                        if isinstance(resized_array, np.ndarray):
-                            # Convert numpy array to PIL Image
-                            # Ensure the array is in the right format (uint8, RGB)
-                            if resized_array.dtype != np.uint8:
-                                resized_array = (resized_array * 255).astype(np.uint8)
-                            pil_image = Image.fromarray(resized_array)
-                        else:
-                            # Fallback to original image processing
-                            print(f"Unexpected image format for {filename}, falling back to PIL resize")
-                            with Image.open(local_path) as img:
-                                if img.mode != 'RGB':
-                                    img = img.convert('RGB')
-                                pil_image = img.resize(target_size, Image.Resampling.LANCZOS)
-                    
-                    pil_image.save(processed_path, 'JPEG', quality=85)
-                    
-                    # Generate tags and caption
-                    tags, caption = self.generate_tags_and_caption(processed_path)
+                    tags, caption = self.generate_tags_and_caption_from_array(resized_array)
                     
                     # Get file stats
                     file_stats = os.stat(local_path)
