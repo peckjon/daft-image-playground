@@ -2,7 +2,7 @@
 
 An intelligent image search application that uses AI to automatically tag and make images searchable. Built with Daft.ai for efficient data processing, Flask for the backend, and a modern web interface.
 
-
+https://github.com/user-attachments/assets/71fce0b2-e37e-4a4d-8649-336ced5a42f6
 
 ## Features
 
@@ -193,7 +193,6 @@ daft-image-playground/
 - **Daft.ai**: Distributed data processing
 - **Flask**: Web framework
 - **Transformers**: Hugging Face model library
-- **Pillow**: Image processing
 - **Bootstrap**: UI framework
 
 ## License
