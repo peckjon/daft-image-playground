@@ -104,8 +104,6 @@ def search_images():
 
     # Execute query to get matching IDs
     matching_ids_result = daft.sql(combined_search_sql).to_pylist()
-
-    # Get matching IDs
     matching_ids = [row['id'] for row in matching_ids_result]
     
     # Filter original DataFrame to get results with proper tags array

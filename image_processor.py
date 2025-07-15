@@ -83,7 +83,8 @@ class ImageProcessor:
             if image_array.dtype != np.uint8:
                 image_array = (image_array * 255).astype(np.uint8)
             
-            image_tensor = torch.from_numpy(image_array).float() / 255.0
+            # Make a writable copy of the array before converting to tensor
+            image_tensor = torch.from_numpy(np.copy(image_array)).float() / 255.0
             
             # Rearrange dimensions and add batch dimension
             if len(image_tensor.shape) == 3:
