@@ -11,10 +11,6 @@ import shutil
 print("🚀 Starting Daft Image Search Tool...")
 
 app = Flask(__name__)
-app.config.update({
-    'UPLOAD_FOLDER': 'data',
-    'PROCESSED_IMAGES': 'processed_images'
-})
 
 # Create directories
 for folder in ['data', 'processed_images', 'static', 'templates']:
@@ -68,7 +64,7 @@ def get_job_status(job_id):
 
 def load_processed_images():
     """Helper to load processed images JSON"""
-    json_path = os.path.join(app.config['UPLOAD_FOLDER'], 'processed_images.json')
+    json_path = os.path.join('data', 'processed_images.json')
     if not os.path.exists(json_path):
         return None
     
@@ -162,19 +158,18 @@ def list_images():
 @app.route('/processed_images/<filename>')
 def serve_processed_image(filename):
     """Serve processed images"""
-    return send_from_directory(app.config['PROCESSED_IMAGES'], filename)
+    return send_from_directory('processed_images', filename)
 
 @app.route('/api/reset', methods=['POST'])
 def reset_library():
     """Reset the image library by clearing all processed data"""
     # Remove JSON file
-    json_path = os.path.join(app.config['UPLOAD_FOLDER'], 'processed_images.json')
+    json_path = os.path.join('data', 'processed_images.json')
     os.remove(json_path) if os.path.exists(json_path) else None
     
     # Clear processed images directory
-    processed_dir = app.config['PROCESSED_IMAGES']
-    shutil.rmtree(processed_dir, ignore_errors=True)
-    os.makedirs(processed_dir, exist_ok=True)
+    shutil.rmtree('processed_images', ignore_errors=True)
+    os.makedirs('processed_images', exist_ok=True)
     
     return jsonify({'message': 'Image library reset successfully'})
 
