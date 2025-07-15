@@ -1,4 +1,7 @@
-https://github.com/user-attachments/assets/71fce0b2-e37e-4a4d-8649-336ced5a42f6
+<video width="100%" controls>
+  <source src="https://github.com/user-attachments/assets/71fce0b2-e37e-4a4d-8649-336ced5a42f6" type="video/mp4">
+  Image Playground demo using Daft.ai
+</video>
 
 # Building an AI-Powered Image Search Engine with Daft.ai
 
