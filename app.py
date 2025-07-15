@@ -6,16 +6,21 @@ from datetime import datetime
 import threading
 from image_processor import ImageProcessor
 
+print("🚀 Starting Daft Image Search Tool...")
+print("📦 Initializing Flask application...")
+
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'data'
 app.config['PROCESSED_IMAGES'] = 'processed_images'
 
+print("📁 Creating necessary directories...")
 # Create necessary directories
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs(app.config['PROCESSED_IMAGES'], exist_ok=True)
 os.makedirs('static', exist_ok=True)
 os.makedirs('templates', exist_ok=True)
 
+print("🤖 Initializing AI image processor (this may take a moment)...")
 # Global variables for job tracking
 processing_jobs = {}
 image_processor = ImageProcessor()
@@ -160,4 +165,10 @@ def reset_library():
         return jsonify({'error': f'Failed to reset library: {str(e)}'}), 500
 
 if __name__ == '__main__':
+    print("✅ Initialization complete!")
+    print("🌐 Starting Flask web server...")
+    print("📡 Server will be available at: http://localhost:8000")
+    print("📱 Or access from other devices at: http://0.0.0.0:8000")
+    print("🔧 Running in debug mode - changes will auto-reload")
+    print("-" * 50)
     app.run(debug=True, host='0.0.0.0', port=8000)
