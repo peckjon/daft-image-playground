@@ -167,6 +167,9 @@ data/
 processed_images/
 *.json
 
+# Stopwords cache
+stopwords_cache.txt
+
 # AI Models cache (downloaded models can be large)
 models/
 transformers_cache/

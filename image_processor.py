@@ -7,13 +7,57 @@ from transformers import BlipProcessor, BlipForConditionalGeneration
 from datetime import datetime
 import hashlib
 from urllib.parse import urlparse
+import requests
 
 class ImageProcessor:
     def __init__(self):
         # Initialize the image captioning model
         self.processor = None
         self.model = None
+        self.stopwords = set()
+        self.load_stopwords()
         self.load_model()
+        
+    def load_stopwords(self):
+        """Load English stopwords from a remote source or use fallback"""
+        try:
+            # Try to load from local cache first
+            cache_file = 'stopwords_cache.txt'
+            if os.path.exists(cache_file):
+                with open(cache_file, 'r') as f:
+                    self.stopwords = set(word.strip().lower() for word in f.readlines() if word.strip())
+                print(f"Loaded {len(self.stopwords)} stopwords from cache")
+                return
+            
+            # Download from a reliable source
+            print("Downloading English stopwords...")
+            url = "https://raw.githubusercontent.com/stopwords-iso/stopwords-en/master/stopwords-en.txt"
+            response = requests.get(url, timeout=10)
+            response.raise_for_status()
+            
+            # Parse stopwords
+            stopwords_list = [word.strip().lower() for word in response.text.split('\n') if word.strip()]
+            self.stopwords = set(stopwords_list)
+            
+            # Cache for future use
+            with open(cache_file, 'w') as f:
+                for word in sorted(self.stopwords):
+                    f.write(f"{word}\n")
+            
+            print(f"Downloaded and cached {len(self.stopwords)} stopwords")
+            
+        except Exception as e:
+            print(f"Failed to download stopwords: {e}")
+            print("Using minimal fallback stopwords")
+            # Minimal fallback stopwords
+            self.stopwords = {
+                'a', 'an', 'the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 
+                'of', 'with', 'by', 'is', 'are', 'was', 'were', 'be', 'been', 'being',
+                'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could',
+                'should', 'may', 'might', 'must', 'can', 'this', 'that', 'these',
+                'those', 'i', 'you', 'he', 'she', 'it', 'we', 'they', 'me', 'him',
+                'her', 'us', 'them', 'my', 'your', 'his', 'her', 'its', 'our', 'their'
+            }
         
     def load_model(self):
         """Load the BLIP model for image captioning"""
@@ -91,38 +135,6 @@ class ImageProcessor:
             out = self.model.generate(**inputs, max_length=50)
             caption = self.processor.decode(out[0], skip_special_tokens=True)
             
-            # Define stopwords and unimportant words to exclude
-            stopwords = {
-                # Articles
-                'a', 'an', 'the',
-                # Prepositions
-                'in', 'on', 'at', 'by', 'for', 'with', 'without', 'to', 'from', 'of', 'about', 'into', 'through', 'during', 'before', 'after', 'above', 'below', 'up', 'down', 'out', 'off', 'over', 'under', 'again', 'further', 'then', 'once',
-                # Pronouns
-                'i', 'me', 'my', 'myself', 'we', 'our', 'ours', 'ourselves', 'you', 'your', 'yours', 'yourself', 'yourselves', 'he', 'him', 'his', 'himself', 'she', 'her', 'hers', 'herself', 'it', 'its', 'itself', 'they', 'them', 'their', 'theirs', 'themselves',
-                # Common verbs (being verbs, auxiliaries)
-                'am', 'is', 'are', 'was', 'were', 'being', 'been', 'be', 'have', 'has', 'had', 'having', 'do', 'does', 'did', 'doing', 'will', 'would', 'could', 'should', 'may', 'might', 'must', 'shall', 'can',
-                # Conjunctions
-                'and', 'or', 'but', 'if', 'then', 'else', 'when', 'where', 'why', 'how', 'because', 'as', 'until', 'while', 'although', 'though', 'since', 'unless', 'whether',
-                # Common adjectives (vague descriptors)
-                'very', 'quite', 'really', 'too', 'much', 'many', 'most', 'more', 'less', 'little', 'few', 'several', 'some', 'any', 'all', 'both', 'each', 'every', 'either', 'neither', 'other', 'another', 'such', 'what', 'which', 'who', 'whom', 'whose', 'this', 'that', 'these', 'those',
-                # Common adverbs
-                'so', 'just', 'now', 'here', 'there', 'where', 'everywhere', 'anywhere', 'somewhere', 'nowhere', 'today', 'yesterday', 'tomorrow', 'always', 'never', 'sometimes', 'often', 'usually', 'rarely', 'hardly', 'nearly', 'almost', 'quite', 'rather', 'pretty', 'fairly',
-                # Numbers (spelled out)
-                'zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety', 'hundred', 'thousand', 'million',
-                # Generic words
-                'thing', 'things', 'something', 'anything', 'nothing', 'everything', 'stuff', 'item', 'items', 'object', 'objects', 'place', 'places', 'area', 'areas', 'way', 'ways', 'time', 'times', 'day', 'days', 'year', 'years', 'part', 'parts', 'side', 'sides', 'kind', 'kinds', 'type', 'types', 'sort', 'sorts',
-                # Size/quantity descriptors
-                'big', 'small', 'large', 'tiny', 'huge', 'enormous', 'little', 'great', 'long', 'short', 'tall', 'high', 'low', 'wide', 'narrow', 'thick', 'thin', 'heavy', 'light', 'empty', 'full',
-                # Common but not useful for search
-                'nice', 'good', 'bad', 'new', 'old', 'young', 'different', 'same', 'right', 'left', 'next', 'last', 'first', 'second', 'third', 'final', 'main', 'only', 'other', 'another', 'certain', 'sure', 'clear', 'possible', 'available', 'free', 'open', 'close', 'closed',
-                # Action words that are too common
-                'get', 'got', 'getting', 'go', 'going', 'went', 'gone', 'come', 'coming', 'came', 'take', 'taking', 'took', 'taken', 'give', 'giving', 'gave', 'given', 'make', 'making', 'made', 'put', 'putting', 'say', 'saying', 'said', 'tell', 'telling', 'told', 'know', 'knowing', 'knew', 'known', 'think', 'thinking', 'thought', 'see', 'seeing', 'saw', 'seen', 'look', 'looking', 'looked', 'feel', 'feeling', 'felt', 'seem', 'seeming', 'seemed', 'become', 'becoming', 'became', 'turn', 'turning', 'turned',
-                # Filler words
-                'well', 'okay', 'ok', 'yeah', 'yes', 'no', 'maybe', 'perhaps', 'probably', 'definitely', 'certainly', 'absolutely', 'exactly', 'particularly', 'especially', 'generally', 'usually', 'normally', 'typically', 'basically', 'actually', 'really', 'truly', 'seriously', 'literally', 'obviously', 'clearly', 'apparently', 'presumably', 'supposedly', 'allegedly',
-                # Punctuation and special
-                '.', ',', '!', '?', ';', ':', '"', "'", '(', ')', '[', ']', '{', '}', '-', '_', '=', '+', '*', '/', '\\', '|', '@', '#', '$', '%', '^', '&'
-            }
-            
             # Split caption into words and clean them
             words = caption.lower().split()
             tags = []
@@ -134,7 +146,7 @@ class ImageProcessor:
                 # Skip if word is too short, too long, or in stopwords
                 if (len(clean_word) >= 3 and 
                     len(clean_word) <= 20 and 
-                    clean_word not in stopwords and
+                    clean_word not in self.stopwords and
                     clean_word.isalpha()):  # Only alphabetic characters
                     tags.append(clean_word)
             
