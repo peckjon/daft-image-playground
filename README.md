@@ -191,7 +191,6 @@ daft-image-playground/
 - **Daft.ai**: Distributed data processing
 - **Flask**: Web framework
 - **Transformers**: Hugging Face model library
-- **Pillow**: Image processing
 - **Bootstrap**: UI framework
 
 ## License
