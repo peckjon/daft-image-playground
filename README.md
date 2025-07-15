@@ -44,6 +44,8 @@ Full transparency: while the initial code generation was aided by GitHub Copilot
 
 This project showcases only a tiny slice of [Daft's capabilities](https://daft.ai). The framework supports everything from distributed computing across cloud infrastructure to advanced ML workloads with GPU acceleration. If you're dealing with large-scale data processing, multimedia pipelines, or looking to modernize your data infrastructure, there's a lot more to explore.
 
+Read more details below, or if you're ready, [jump right into the code](https://github.com/peckjon/daft-image-playground)!
+
 ---
 
 ## Features
