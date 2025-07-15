@@ -20,7 +20,7 @@ class ImageProcessor:
         """Load English stopwords from local file"""
         try:
             with open('stopwords-en.txt', 'r') as f:
-                self.stopwords = {word.strip().lower() for word in f if word.strip() and not word.strip().startswith('#')}
+                self.stopwords = {word for word in f.read().splitlines() if word}
             print(f"Loaded {len(self.stopwords)} stopwords")
         except Exception as e:
             print(f"Failed to load stopwords: {e}")

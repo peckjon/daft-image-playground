@@ -129,6 +129,7 @@ daft-image-playground/
 ├── image_processor.py     # Core processing logic
 ├── requirements.txt       # Python dependencies
 ├── setup.sh              # Setup script
+├── LICENSE               # MIT License
 ├── templates/            # HTML templates
 │   ├── data_loader.html
 │   └── image_library.html
@@ -197,7 +198,15 @@ daft-image-playground/
 
 ## License
 
-This project is open source. Feel free to use and modify as needed.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+MIT License allows you to:
+- ✅ Use commercially
+- ✅ Modify and distribute
+- ✅ Place warranty
+- ✅ Use patents
+
+The only requirement is to include the original copyright notice.
 
 ## Contributing
 
