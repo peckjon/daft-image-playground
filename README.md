@@ -47,8 +47,6 @@ This project showcases only a tiny slice of [Daft's capabilities](https://daft.a
 > [!TIP]
 > Ready to dive in? [Jump right into the code](https://github.com/peckjon/daft-image-playground) or read the detailed implementation guide below!
 
----
-
 ## Features
 
 ### 🔄 Data Loader
