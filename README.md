@@ -1,6 +1,6 @@
 https://github.com/user-attachments/assets/71fce0b2-e37e-4a4d-8649-336ced5a42f6
 
-# Building an AI-Powered Image Search Engine with Daft: A Mini Case Study
+# Building an AI-Powered Image Search Engine with Daft.ai
 
 Back when ML models mainly lived on self-hosted servers instead of smartphones, I spent a few years with [Algorithmia](https://github.com/algorithmiaio), building some of the first and best ML (now "AI") hosting services. Many of my days were spent deep in the trenches with Python datascientists, churning through Jupyter notebooks, optimizing their algorithms to run in ephemeral serverless environments. Those were the days when data transformation pipelines required complex orchestration of multiple tools, custom scripts for every file format, and endless debugging of memory issues and race conditions.
 
@@ -18,7 +18,7 @@ The three Daft features that really shine in this project are:
 
 **⚡ [Bulk Image Processing](https://docs.getdaft.io/en/stable/api/expressions/#daft.expressions.expressions.ExpressionImageNamespace)**: Daft's native image operations let us chain `.image.decode()`, `.image.resize()`, and `.image.encode()` in a single pipeline. This means processing thousands of photos happens in parallel without having to manually manage Pillow operations, threading, or memory concerns.
 
-**📊 [SQL Query over JSON](https://docs.getdaft.io/en/stable/sql_overview/)**: Once our image metadata is processed, Daft's SQL interface `daft.sql()` lets us write SQL queries directly over our JSON data structures, including complex operations like array explosions for tag searching.
+**📊 [SQL Query over JSON](https://docs.getdaft.io/en/stable/sql_overview/)**: Once our image metadata is processed, Daft's SQL interface `daft.sql()` lets us write SQL queries directly over our JSON data structures, including complex operations that replace slow and cumbersome dataframe operations -- like array explosions for tag searching, and querying across multiple fields simultaneously.
 
 ## What We Built Together
 
