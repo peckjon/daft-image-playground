@@ -73,7 +73,7 @@ def load_processed_images():
 
 @app.route('/api/search', methods=['POST'])
 def search_images():
-    """Search for images based on text query using Daft"""
+    """Search for images based on text query using Daft SQL"""
     query = request.json.get('query', '').strip()
     
     if not query:
@@ -91,46 +91,28 @@ def search_images():
     
     query_lower = query.lower()
     
-    # Collect all matching IDs from different searches
-    matching_ids = set()
+    # Explode tags for searching
+    df_exploded = df.explode(daft.col("tags"))
     
-    # Search in tags - explode tags array and filter
-    df_tags = df.explode(daft.col("tags"))
-    df_tag_matches = df_tags.where(
-        daft.col("tags").str.lower().str.contains(query_lower)
-    ).collect()
-    # Get IDs from tag matches
-    if len(df_tag_matches) > 0:
-        tag_ids = df_tag_matches.select("id").to_pylist()
-        matching_ids.update([row["id"] for row in tag_ids])
+    # Get IDs that match in tags only
+    tag_ids_sql = f"""
+    SELECT DISTINCT id
+    FROM df_exploded
+    WHERE LOWER(tags) LIKE '%{query_lower}%'
+    """
     
-    # Search in filenames
-    df_filename_matches = df.where(
-        daft.col("filename").str.lower().str.contains(query_lower)
-    ).collect()
-    # Get IDs from filename matches
-    if len(df_filename_matches) > 0:
-        filename_ids = df_filename_matches.select("id").to_pylist()
-        matching_ids.update([row["id"] for row in filename_ids])
+    # Execute query to get matching IDs
+    tag_ids = daft.sql(tag_ids_sql).to_pylist()
     
-    # Search in captions
-    df_caption_matches = df.where(
-        daft.col("caption").str.lower().str.contains(query_lower)
-    ).collect()
-    # Get IDs from caption matches
-    if len(df_caption_matches) > 0:
-        caption_ids = df_caption_matches.select("id").to_pylist()
-        matching_ids.update([row["id"] for row in caption_ids])
+    # Get matching IDs
+    matching_ids = [row['id'] for row in tag_ids]
     
-    # Filter original DataFrame to get all matches with consistent schema
+    # Filter original DataFrame to get results with proper tags array
     if matching_ids:
-        all_matches = df.where(daft.col("id").is_in(list(matching_ids)))
+        results_df = df.where(daft.col("id").is_in(matching_ids))
+        results = results_df.to_pylist()
     else:
-        # Create empty DataFrame with same schema
-        all_matches = df.where(daft.lit(False))
-    
-    # Convert to Python objects for JSON serialization
-    results = all_matches.to_pylist()
+        results = []
     
     return jsonify({
         'results': results,
