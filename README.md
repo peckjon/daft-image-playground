@@ -2,6 +2,8 @@
 
 An intelligent image search application that uses AI to automatically tag and make images searchable. Built with Daft.ai for efficient data processing, Flask for the backend, and a modern web interface.
 
+
+
 ## Features
 
 ### 🔄 Data Loader
