@@ -91,111 +91,66 @@ class ImageProcessor:
             out = self.model.generate(**inputs, max_length=50)
             caption = self.processor.decode(out[0], skip_special_tokens=True)
             
-            # Generate basic tags from caption
-            common_objects = [
-                # People
-                'person', 'people', 'man', 'woman', 'child', 'baby', 'boy', 'girl', 'adult', 'human', 'face', 'head',
-                'family', 'group', 'crowd', 'individual', 'portrait', 'selfie', 'couple', 'friend', 'friends',
-                
-                # Animals
-                'dog', 'cat', 'bird', 'animal', 'pet', 'horse', 'cow', 'sheep', 'pig', 'chicken', 'duck', 'goose',
-                'fish', 'shark', 'whale', 'dolphin', 'bear', 'lion', 'tiger', 'elephant', 'giraffe', 'zebra',
-                'monkey', 'rabbit', 'squirrel', 'deer', 'fox', 'wolf', 'mouse', 'rat', 'hamster', 'guinea pig',
-                'butterfly', 'bee', 'spider', 'insect', 'wildlife', 'zoo', 'farm', 'domestic', 'wild',
-                
-                # Vehicles
-                'car', 'bike', 'bicycle', 'motorcycle', 'truck', 'bus', 'van', 'taxi', 'vehicle', 'transport',
-                'train', 'airplane', 'plane', 'helicopter', 'boat', 'ship', 'yacht', 'sailboat', 'submarine',
-                'scooter', 'skateboard', 'roller', 'wheel', 'tire', 'engine', 'traffic', 'road',
-                
-                # Buildings & Architecture
-                'house', 'building', 'home', 'structure', 'architecture', 'tower', 'bridge', 'castle', 'church',
-                'school', 'hospital', 'office', 'store', 'shop', 'mall', 'restaurant', 'cafe', 'hotel',
-                'apartment', 'skyscraper', 'barn', 'garage', 'warehouse', 'factory', 'museum', 'library',
-                'stadium', 'theater', 'cinema', 'bank', 'station', 'airport', 'construction', 'brick', 'stone',
-                
-                # Nature & Plants
-                'tree', 'flower', 'plant', 'leaf', 'grass', 'forest', 'garden', 'branch', 'root', 'seed',
-                'rose', 'tulip', 'daisy', 'sunflower', 'lily', 'orchid', 'bush', 'hedge', 'vine', 'moss',
-                'fern', 'palm', 'pine', 'oak', 'maple', 'willow', 'bamboo', 'cactus', 'succulent', 'herb',
-                
-                # Landscape & Geography
-                'beach', 'ocean', 'sea', 'water', 'mountain', 'hill', 'valley', 'lake', 'river', 'stream',
-                'waterfall', 'pond', 'pool', 'desert', 'sand', 'rock', 'cliff', 'cave', 'island', 'coast',
-                'shore', 'bay', 'harbor', 'field', 'meadow', 'prairie', 'plain', 'plateau', 'canyon', 'gorge',
-                
-                # Weather & Sky
-                'sky', 'cloud', 'clouds', 'sun', 'moon', 'star', 'stars', 'sunset', 'sunrise', 'dawn', 'dusk',
-                'rain', 'snow', 'storm', 'lightning', 'thunder', 'wind', 'fog', 'mist', 'rainbow', 'weather',
-                
-                # Food & Drink
-                'food', 'meal', 'plate', 'bowl', 'cup', 'glass', 'bottle', 'fruit', 'apple', 'banana', 'orange',
-                'grape', 'strawberry', 'cherry', 'peach', 'pear', 'lemon', 'lime', 'vegetable', 'tomato',
-                'carrot', 'potato', 'onion', 'pepper', 'lettuce', 'cabbage', 'broccoli', 'corn', 'bread',
-                'cake', 'cookie', 'pie', 'pizza', 'sandwich', 'burger', 'meat', 'chicken', 'beef', 'pork',
-                'fish', 'seafood', 'cheese', 'milk', 'egg', 'pasta', 'rice', 'soup', 'salad', 'dessert',
-                'coffee', 'tea', 'juice', 'wine', 'beer', 'soda', 'water', 'drink', 'beverage',
-                
-                # Furniture & Objects
-                'table', 'chair', 'bed', 'sofa', 'couch', 'desk', 'furniture', 'seat', 'bench', 'stool',
-                'cabinet', 'shelf', 'bookshelf', 'dresser', 'wardrobe', 'mirror', 'lamp', 'light', 'window',
-                'door', 'wall', 'floor', 'ceiling', 'curtain', 'blind', 'carpet', 'rug', 'pillow', 'cushion',
-                'blanket', 'sheet', 'towel', 'clock', 'picture', 'painting', 'frame', 'vase', 'pot', 'pan',
-                
-                # Rooms & Spaces
-                'room', 'kitchen', 'bedroom', 'bathroom', 'living', 'dining', 'office', 'study', 'garage',
-                'basement', 'attic', 'balcony', 'patio', 'deck', 'porch', 'hallway', 'corridor', 'closet',
-                'pantry', 'laundry', 'indoor', 'interior', 'inside',
-                
-                # Outdoor & Settings
-                'outdoor', 'outside', 'exterior', 'yard', 'lawn', 'driveway', 'sidewalk', 'street', 'road',
-                'highway', 'path', 'trail', 'park', 'playground', 'garden', 'backyard', 'frontyard', 'fence',
-                'gate', 'mailbox', 'city', 'town', 'village', 'urban', 'rural', 'suburban', 'downtown',
-                'neighborhood', 'plaza', 'square', 'market', 'fair', 'festival', 'event', 'crowd', 'public',
-                
-                # Colors
-                'red', 'blue', 'green', 'yellow', 'orange', 'purple', 'pink', 'brown', 'black', 'white',
-                'gray', 'grey', 'silver', 'gold', 'beige', 'tan', 'maroon', 'navy', 'teal', 'turquoise',
-                'violet', 'magenta', 'cyan', 'lime', 'olive', 'color', 'colorful', 'bright', 'dark', 'light',
-                
-                # Activities & Actions
-                'sitting', 'standing', 'walking', 'running', 'jumping', 'playing', 'eating', 'drinking',
-                'sleeping', 'reading', 'writing', 'cooking', 'cleaning', 'working', 'studying', 'talking',
-                'laughing', 'smiling', 'dancing', 'singing', 'swimming', 'driving', 'riding', 'flying',
-                'climbing', 'hiking', 'camping', 'fishing', 'hunting', 'shopping', 'traveling', 'vacation',
-                
-                # Technology & Objects
-                'computer', 'laptop', 'phone', 'mobile', 'tablet', 'screen', 'monitor', 'keyboard', 'mouse',
-                'camera', 'photo', 'picture', 'video', 'television', 'tv', 'radio', 'speaker', 'headphone',
-                'watch', 'clock', 'calculator', 'remote', 'charger', 'cable', 'wire', 'battery', 'device',
-                
-                # Sports & Recreation
-                'sport', 'game', 'ball', 'football', 'soccer', 'basketball', 'baseball', 'tennis', 'golf',
-                'hockey', 'volleyball', 'swimming', 'running', 'cycling', 'skiing', 'surfing', 'skateboard',
-                'gym', 'fitness', 'exercise', 'workout', 'team', 'player', 'athlete', 'competition', 'match',
-                
-                # Clothing & Accessories
-                'clothing', 'clothes', 'shirt', 'pants', 'dress', 'skirt', 'jacket', 'coat', 'sweater',
-                'hat', 'cap', 'shoes', 'boots', 'sandals', 'socks', 'gloves', 'scarf', 'belt', 'tie',
-                'jewelry', 'necklace', 'ring', 'bracelet', 'earring', 'watch', 'bag', 'purse', 'backpack',
-                
-                # Art & Culture
-                'art', 'painting', 'drawing', 'sculpture', 'statue', 'gallery', 'museum', 'culture',
-                'music', 'instrument', 'guitar', 'piano', 'violin', 'drum', 'concert', 'performance',
-                'book', 'magazine', 'newspaper', 'text', 'writing', 'letter', 'sign', 'poster', 'banner'
-            ]
+            # Define stopwords and unimportant words to exclude
+            stopwords = {
+                # Articles
+                'a', 'an', 'the',
+                # Prepositions
+                'in', 'on', 'at', 'by', 'for', 'with', 'without', 'to', 'from', 'of', 'about', 'into', 'through', 'during', 'before', 'after', 'above', 'below', 'up', 'down', 'out', 'off', 'over', 'under', 'again', 'further', 'then', 'once',
+                # Pronouns
+                'i', 'me', 'my', 'myself', 'we', 'our', 'ours', 'ourselves', 'you', 'your', 'yours', 'yourself', 'yourselves', 'he', 'him', 'his', 'himself', 'she', 'her', 'hers', 'herself', 'it', 'its', 'itself', 'they', 'them', 'their', 'theirs', 'themselves',
+                # Common verbs (being verbs, auxiliaries)
+                'am', 'is', 'are', 'was', 'were', 'being', 'been', 'be', 'have', 'has', 'had', 'having', 'do', 'does', 'did', 'doing', 'will', 'would', 'could', 'should', 'may', 'might', 'must', 'shall', 'can',
+                # Conjunctions
+                'and', 'or', 'but', 'if', 'then', 'else', 'when', 'where', 'why', 'how', 'because', 'as', 'until', 'while', 'although', 'though', 'since', 'unless', 'whether',
+                # Common adjectives (vague descriptors)
+                'very', 'quite', 'really', 'too', 'much', 'many', 'most', 'more', 'less', 'little', 'few', 'several', 'some', 'any', 'all', 'both', 'each', 'every', 'either', 'neither', 'other', 'another', 'such', 'what', 'which', 'who', 'whom', 'whose', 'this', 'that', 'these', 'those',
+                # Common adverbs
+                'so', 'just', 'now', 'here', 'there', 'where', 'everywhere', 'anywhere', 'somewhere', 'nowhere', 'today', 'yesterday', 'tomorrow', 'always', 'never', 'sometimes', 'often', 'usually', 'rarely', 'hardly', 'nearly', 'almost', 'quite', 'rather', 'pretty', 'fairly',
+                # Numbers (spelled out)
+                'zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety', 'hundred', 'thousand', 'million',
+                # Generic words
+                'thing', 'things', 'something', 'anything', 'nothing', 'everything', 'stuff', 'item', 'items', 'object', 'objects', 'place', 'places', 'area', 'areas', 'way', 'ways', 'time', 'times', 'day', 'days', 'year', 'years', 'part', 'parts', 'side', 'sides', 'kind', 'kinds', 'type', 'types', 'sort', 'sorts',
+                # Size/quantity descriptors
+                'big', 'small', 'large', 'tiny', 'huge', 'enormous', 'little', 'great', 'long', 'short', 'tall', 'high', 'low', 'wide', 'narrow', 'thick', 'thin', 'heavy', 'light', 'empty', 'full',
+                # Common but not useful for search
+                'nice', 'good', 'bad', 'new', 'old', 'young', 'different', 'same', 'right', 'left', 'next', 'last', 'first', 'second', 'third', 'final', 'main', 'only', 'other', 'another', 'certain', 'sure', 'clear', 'possible', 'available', 'free', 'open', 'close', 'closed',
+                # Action words that are too common
+                'get', 'got', 'getting', 'go', 'going', 'went', 'gone', 'come', 'coming', 'came', 'take', 'taking', 'took', 'taken', 'give', 'giving', 'gave', 'given', 'make', 'making', 'made', 'put', 'putting', 'say', 'saying', 'said', 'tell', 'telling', 'told', 'know', 'knowing', 'knew', 'known', 'think', 'thinking', 'thought', 'see', 'seeing', 'saw', 'seen', 'look', 'looking', 'looked', 'feel', 'feeling', 'felt', 'seem', 'seeming', 'seemed', 'become', 'becoming', 'became', 'turn', 'turning', 'turned',
+                # Filler words
+                'well', 'okay', 'ok', 'yeah', 'yes', 'no', 'maybe', 'perhaps', 'probably', 'definitely', 'certainly', 'absolutely', 'exactly', 'particularly', 'especially', 'generally', 'usually', 'normally', 'typically', 'basically', 'actually', 'really', 'truly', 'seriously', 'literally', 'obviously', 'clearly', 'apparently', 'presumably', 'supposedly', 'allegedly',
+                # Punctuation and special
+                '.', ',', '!', '?', ';', ':', '"', "'", '(', ')', '[', ']', '{', '}', '-', '_', '=', '+', '*', '/', '\\', '|', '@', '#', '$', '%', '^', '&'
+            }
             
+            # Split caption into words and clean them
+            words = caption.lower().split()
             tags = []
-            caption_lower = caption.lower()
-            for obj in common_objects:
-                if obj in caption_lower:
-                    tags.append(obj)
+            
+            for word in words:
+                # Remove punctuation from word
+                clean_word = ''.join(char for char in word if char.isalnum())
+                
+                # Skip if word is too short, too long, or in stopwords
+                if (len(clean_word) >= 3 and 
+                    len(clean_word) <= 20 and 
+                    clean_word not in stopwords and
+                    clean_word.isalpha()):  # Only alphabetic characters
+                    tags.append(clean_word)
+            
+            # Remove duplicates while preserving order
+            seen = set()
+            unique_tags = []
+            for tag in tags:
+                if tag not in seen:
+                    seen.add(tag)
+                    unique_tags.append(tag)
             
             # Add some basic tags if none found
-            if not tags:
-                tags = ['image']
+            if not unique_tags:
+                unique_tags = ['image']
             
-            return tags, caption
+            return unique_tags, caption
             
         except Exception as e:
             print(f"Error generating caption: {e}")
