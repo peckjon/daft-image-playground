@@ -6,5 +6,3 @@ google_analytics: true
 show_downloads: false
 title: "Daft Image Playground"
 description: "AI image search via Daft.ai, Flask, and BLIP"
-plugins:
-  - jekyll-seo-tag
