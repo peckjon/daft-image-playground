@@ -7,6 +7,7 @@ import hashlib
 from urllib.parse import urlparse
 import numpy as np
 import torch
+from daft import udf
 
 class ImageProcessor:
     def __init__(self):
@@ -187,10 +188,46 @@ class ImageProcessor:
             
             print("Bulk resizing images with Daft...")
             
-            # Pipeline: read -> decode -> resize -> encode
-            df_images = (df_images
+            # UDF to decode and normalize images (must be 1 step, for pipelining)
+            @daft.udf(return_dtype=daft.DataType.image())
+            def decode_and_normalize_udf(file_data_series):
+                import numpy as np
+                from PIL import Image
+                import io
+                
+                results = []
+                
+                # UDFs works on the Series, so we need to iterate through each value
+                for file_data in file_data_series:
+                    try:
+                        # Decode the image from bytes
+                        image = Image.open(io.BytesIO(file_data))
+                        # Convert to RGB if needed
+                        if image.mode != 'RGB':
+                            image = image.convert('RGB')
+                        # Convert to numpy array
+                        image_array = np.array(image)
+                        
+                        # Ensure uint8 dtype
+                        if image_array.dtype != np.uint8:
+                            if np.issubdtype(image_array.dtype, np.integer):
+                                info = np.iinfo(image_array.dtype)
+                                image_array = (image_array.astype(np.float32) / info.max * 255).astype(np.uint8)
+                            else:
+                                image_array = (np.clip(image_array, 0, 1) * 255).astype(np.uint8)
+                        
+                        results.append(image_array)
+                    except Exception as e:
+                        print(f"Error in decode_and_normalize_udf: {e}")
+                        results.append(None)
+                
+                return results
+            
+            # Pipeline: read -> decode+normalize -> resize -> encode
+            df_images = (
+                df_images
                 .with_column("file_data", daft.col("path").url.download())
-                .with_column("image_data", daft.col("file_data").image.decode())
+                .with_column("image_data", decode_and_normalize_udf(daft.col("file_data")))
                 .with_column("resized_image", daft.col("image_data").image.resize(224, 224))
                 .with_column("encoded_image", daft.col("resized_image").image.encode("JPEG"))
             )
