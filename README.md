@@ -2,15 +2,6 @@
 title: "Building an AI-Powered Image Search Engine with Daft.ai"
 description: "Intelligent image search tool using Daft.ai, Flask, and image recognition. Search and explore images intelligently on this playground."
 image: https://github.com/user-attachments/assets/9513c930-fc68-4ae4-b5d7-d5acfe702784
-author:
-  name: Jon Peck
-  url: https://peckjon.github.io/
-  twitter: peckjon
-twitter:
-  username: peckjon
-  card: summary_large_image
-seo:
-  type: Article
 ---
 
 <div align="center" style="max-width: 720px; margin: 0 auto;">
