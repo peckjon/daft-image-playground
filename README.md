@@ -1,5 +1,5 @@
 <div align="center" style="max-width: 720px; margin: 0 auto;">
-<video width="100%" controls>
+<video width="100%" controls playsinline autoplay loop muted>
   <source src="https://github.com/user-attachments/assets/71fce0b2-e37e-4a4d-8649-336ced5a42f6" type="video/mp4">
   Image Playground demo using Daft.ai
 </video>
