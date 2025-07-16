@@ -10,8 +10,8 @@ description: "AI image search via Daft.ai, Flask, and BLIP"
 # SEO and social media meta tags
 url: "https://peckjon.github.io"
 baseurl: "/daft-image-playground"
-image: https://github.com/user-attachments/assets/9513c930-fc68-4ae4-b5d7-d5acfe702784
-logo: https://github.com/user-attachments/assets/9513c930-fc68-4ae4-b5d7-d5acfe702784
+image: https://peckjon.github.io/daft-image-playground/preview.jpg
+logo: https://peckjon.github.io/daft-image-playground/preview.jpg
 
 # Additional SEO settings for jekyll-seo-tag plugin
 author: 
@@ -35,5 +35,5 @@ defaults:
   - scope:
       path: ""
     values:
-      image: https://github.com/user-attachments/assets/9513c930-fc68-4ae4-b5d7-d5acfe702784
+      image: https://peckjon.github.io/daft-image-playground/preview.jpg
       type: website
