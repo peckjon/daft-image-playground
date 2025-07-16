@@ -4,20 +4,33 @@
 theme: jekyll-theme-slate
 google_analytics: true
 show_downloads: false
-title: "Daft Image Playground"
-description: "AI image search via Daft.ai, Flask, and BLIP"
+title: "Daft Image Playground – Intelligent Image Search Tool"
+description: "Intelligent image search tool using Daft.ai, Flask, and image recognition. Search and explore images intelligently on this playground."
 
 # SEO and social media meta tags
+url: "https://peckjon.github.io"
+baseurl: "/daft-image-playground"
 image: https://github.com/user-attachments/assets/9513c930-fc68-4ae4-b5d7-d5acfe702784
 
 # Additional SEO settings for jekyll-seo-tag plugin
+author: "peckjon"
+robots: "index, follow"
+
+# Twitter Card settings
+twitter:
+  card: summary_large_image
+  username: peckjon
+
+# Social media settings
 social:
   name: "Daft Image Playground"
-  links: [https://github.com/peckjon/daft-image-playground]
+  links: 
+    - https://github.com/peckjon/daft-image-playground
 
-# Open Graph / Twitter Card defaults
+# SEO defaults for all pages
 defaults:
   - scope:
       path: ""
     values:
       image: https://github.com/user-attachments/assets/9513c930-fc68-4ae4-b5d7-d5acfe702784
+      type: website
