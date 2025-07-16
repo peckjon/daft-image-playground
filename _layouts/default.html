@@ -11,6 +11,8 @@
     <link rel="stylesheet" type="text/css" media="screen" href="{{ '/assets/css/style.css?v=' | append: site.github.build_revision | relative_url }}">
 
 {% seo %}
+    <!-- LinkedIn-specific meta tag format -->
+    <meta name="image" property="og:image" content="{{ site.image | default: page.image }}" />
     {% include head-custom.html %}
   </head>
 
