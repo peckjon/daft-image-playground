@@ -106,6 +106,10 @@
                                     Enter the full path to the folder containing your images, or click "Browse" to navigate folders. 
                                     All subfolders will be processed automatically.
                                 </div>
+                                <div class="alert alert-info py-2 mt-2 mb-0">
+                                    <i class="fas fa-info-circle"></i> <strong>Note:</strong> New images will be added to your existing library. 
+                                    Duplicate images (same file) will be automatically skipped.
+                                </div>
                             </div>
                             
                             <!-- Folder Browser Modal -->
@@ -458,10 +462,25 @@
         }
 
         function showCompletionMessage(job) {
+            const newImages = job.new_images_added || 0;
+            const totalLibrary = job.total_library_size || 0;
+            const duplicates = job.duplicates_skipped || 0;
+            const processed = job.successful_images || job.processed_images || 0;
+            
+            let statusText = `Successfully processed ${processed} images.`;
+            if (newImages > 0 || duplicates > 0) {
+                statusText = `Successfully processed ${processed} images. Added ${newImages} new images to library`;
+                if (duplicates > 0) {
+                    statusText += ` (skipped ${duplicates} duplicates)`;
+                }
+                statusText += `.`;
+            }
+            
             const message = `
                 <div class="alert alert-success">
                     <h6><i class="fas fa-check-circle"></i> Processing Completed!</h6>
-                    <p>Successfully processed ${job.successful_images || job.processed_images} images.</p>
+                    <p>${statusText}</p>
+                    ${totalLibrary > 0 ? `<p class="mb-2"><strong>Total images in library: ${totalLibrary}</strong></p>` : ''}
                     <a href="/library" class="btn btn-success btn-sm">
                         <i class="fas fa-search"></i> Go to Image Library
                     </a>

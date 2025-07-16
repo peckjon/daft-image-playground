@@ -236,19 +236,68 @@ class ImageProcessor:
                     'progress': int((i + 1) / total_images * 100)
                 })
             
-            # Save results
-            output_data = {
-                'metadata': {
-                    'processed_date': datetime.now().isoformat(),
-                    'source_folder': folder_path,
-                    'total_images': len(processed_images),
-                    'failed_images': total_images - len(processed_images)
-                },
-                'images': processed_images
-            }
-            
+            # Load existing data and aggregate new images
             os.makedirs('data', exist_ok=True)
             json_path = os.path.join('data', 'processed_images.json')
+            
+            existing_data = None
+            existing_images = []
+            existing_image_ids = set()
+            
+            # Load existing processed images if file exists
+            if os.path.exists(json_path):
+                try:
+                    with open(json_path, 'r') as f:
+                        existing_data = json.load(f)
+                        existing_images = existing_data.get('images', [])
+                        existing_image_ids = {img.get('id') for img in existing_images}
+                        print(f"Found {len(existing_images)} existing processed images")
+                except Exception as e:
+                    print(f"Error loading existing data: {e}")
+                    existing_images = []
+                    existing_image_ids = set()
+            
+            # Filter out images that already exist (based on ID)
+            new_images = []
+            duplicate_count = 0
+            for img in processed_images:
+                if img['id'] not in existing_image_ids:
+                    new_images.append(img)
+                else:
+                    duplicate_count += 1
+            
+            print(f"Found {duplicate_count} duplicate images (skipped)")
+            print(f"Adding {len(new_images)} new images to library")
+            
+            # Combine existing and new images
+            all_images = existing_images + new_images
+            
+            # Create aggregated output data
+            output_data = {
+                'metadata': {
+                    'last_processed_date': datetime.now().isoformat(),
+                    'last_source_folder': folder_path,
+                    'total_images_in_library': len(all_images),
+                    'new_images_added': len(new_images),
+                    'duplicates_skipped': duplicate_count,
+                    'failed_images_this_run': total_images - len(processed_images),
+                    'processing_history': existing_data.get('metadata', {}).get('processing_history', []) + [{
+                        'date': datetime.now().isoformat(),
+                        'source_folder': folder_path,
+                        'images_processed': total_images,
+                        'new_images_added': len(new_images),
+                        'duplicates_skipped': duplicate_count
+                    }] if existing_data else [{
+                        'date': datetime.now().isoformat(),
+                        'source_folder': folder_path,
+                        'images_processed': total_images,
+                        'new_images_added': len(new_images),
+                        'duplicates_skipped': duplicate_count
+                    }]
+                },
+                'images': all_images
+            }
+            
             with open(json_path, 'w') as f:
                 json.dump(output_data, f, indent=2)
             
@@ -257,10 +306,15 @@ class ImageProcessor:
                 'status': 'completed',
                 'end_time': datetime.now().isoformat(),
                 'output_file': json_path,
-                'successful_images': len(processed_images)
+                'successful_images': len(processed_images),
+                'new_images_added': len(new_images),
+                'total_library_size': len(all_images),
+                'duplicates_skipped': duplicate_count
             })
             
             print(f"Processing completed! Successfully processed {len(processed_images)} images")
+            print(f"Added {len(new_images)} new images to library (skipped {duplicate_count} duplicates)")
+            print(f"Total images in library: {len(all_images)}")
             
         except Exception as e:
             print(f"Error in process_folder: {e}")
