@@ -462,6 +462,18 @@
         }
 
         function showCompletionMessage(job) {
+            // Check if there's a custom message (e.g., for 0 images case)
+            if (job.message && (job.successful_images === 0 || job.processed_images === 0)) {
+                const message = `
+                    <div class="alert alert-info">
+                        <h6><i class="fas fa-info-circle"></i> Processing Completed</h6>
+                        <p>${job.message}</p>
+                    </div>
+                `;
+                $('#jobMessage').html(message);
+                return;
+            }
+            
             const newImages = job.new_images_added || 0;
             const totalLibrary = job.total_library_size || 0;
             const duplicates = job.duplicates_skipped || 0;

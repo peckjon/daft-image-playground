@@ -138,40 +138,10 @@ class ImageProcessor:
             
             df_images = self.find_images(folder_path)
             
-            try:
-                image_files = df_images.collect()
-                total_images = len(image_files)
-                print(f"Found {total_images} image files")
-                
-                # Debug: show first few files found
-                if total_images > 0:
-                    print("Sample files found:")
-                    for i, img in enumerate(image_files[:3]):
-                        print(f"  {i+1}. {img['path']}")
-                    if total_images > 3:
-                        print(f"  ... and {total_images-3} more")
-                else:
-                    print("No image files found. Checking directory contents...")
-                    # Manual check for debugging
-                    all_files = []
-                    for root, dirs, files in os.walk(folder_path):
-                        for file in files:
-                            if file.lower().endswith(('.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.tiff')):
-                                all_files.append(os.path.join(root, file))
-                    print(f"Manual scan found {len(all_files)} image files")
-                    if all_files:
-                        print("Sample manually found files:")
-                        for f in all_files[:3]:
-                            print(f"  {f}")
-                            
-            except Exception as e:
-                print(f"Error collecting image files: {e}")
-                processing_jobs[job_id].update({
-                    'status': 'error',
-                    'error': f'Failed to collect image files: {str(e)}'
-                })
-                return
-                
+            # Get total count without materializing the entire dataframe
+            total_images = df_images.count_rows()
+            print(f"Found {total_images} image files")
+            
             processing_jobs[job_id]['total_images'] = total_images
             
             if total_images == 0:
@@ -180,59 +150,101 @@ class ImageProcessor:
                     'message': 'No images found in the specified folder'
                 })
                 return
-            
-            print(f"Found {total_images} images to process")
+
             processing_jobs[job_id]['status'] = 'processing'
             
             os.makedirs('processed_images', exist_ok=True)
             
-            print("Bulk resizing images with Daft...")
+            # Collect all files for processing as a list
+            image_files = df_images.collect().to_pylist()
+
+            # Process in batches to handle large datasets
+            batch_size = 100  # Process 100 images at a time
+            num_batches = (total_images + batch_size - 1) // batch_size
+            print(f"Processing {total_images} images in {num_batches} batches of {batch_size}")
             
-            # UDF to decode and normalize images (must be 1 step, for pipelining)
-            @daft.udf(return_dtype=daft.DataType.image())
-            def decode_and_normalize_udf(file_data_series):
-                import numpy as np
-                from PIL import Image
-                import io
+            all_processed_images = []
+            
+            for batch_idx in range(num_batches):
+                start_idx = batch_idx * batch_size
+                end_idx = min(start_idx + batch_size, total_images)
+                batch_files = image_files[start_idx:end_idx]
                 
-                results = []
+                print(f"Processing batch {batch_idx + 1}/{num_batches} ({len(batch_files)} images)")
                 
-                # UDFs works on the Series, so we need to iterate through each value
-                for file_data in file_data_series:
-                    try:
-                        # Decode the image from bytes
-                        image = Image.open(io.BytesIO(file_data))
-                        # Convert to RGB if needed
-                        if image.mode != 'RGB':
-                            image = image.convert('RGB')
-                        # Convert to numpy array
-                        image_array = np.array(image)
+                try:
+                    # Create dataframe for this batch
+                    batch_df = daft.from_pylist([{"path": img["path"]} for img in batch_files])
+                    
+                    print(f"Bulk resizing batch {batch_idx + 1} with Daft...")
+                    
+                    # UDF to decode and normalize images (must be 1 step, for pipelining)
+                    @daft.udf(return_dtype=daft.DataType.image())
+                    def decode_and_normalize_udf(file_data_series):
+                        import numpy as np
+                        from PIL import Image
+                        import io
                         
-                        # Ensure uint8 dtype
-                        if image_array.dtype != np.uint8:
-                            if np.issubdtype(image_array.dtype, np.integer):
-                                info = np.iinfo(image_array.dtype)
-                                image_array = (image_array.astype(np.float32) / info.max * 255).astype(np.uint8)
-                            else:
-                                image_array = (np.clip(image_array, 0, 1) * 255).astype(np.uint8)
+                        results = []
                         
-                        results.append(image_array)
-                    except Exception as e:
-                        print(f"Error in decode_and_normalize_udf: {e}")
-                        results.append(None)
-                
-                return results
+                        # UDFs works on the Series, so we need to iterate through each value
+                        for file_data in file_data_series:
+                            try:
+                                # Decode the image from bytes
+                                image = Image.open(io.BytesIO(file_data))
+                                # Convert to RGB if needed
+                                if image.mode != 'RGB':
+                                    image = image.convert('RGB')
+                                # Convert to numpy array
+                                image_array = np.array(image)
+                                
+                                # Ensure uint8 dtype
+                                if image_array.dtype != np.uint8:
+                                    if np.issubdtype(image_array.dtype, np.integer):
+                                        info = np.iinfo(image_array.dtype)
+                                        image_array = (image_array.astype(np.float32) / info.max * 255).astype(np.uint8)
+                                    else:
+                                        image_array = (np.clip(image_array, 0, 1) * 255).astype(np.uint8)
+                                
+                                results.append(image_array)
+                            except Exception as e:
+                                print(f"Error in decode_and_normalize_udf: {e}")
+                                results.append(None)
+                        
+                        return results
+                    
+                    # Pipeline: read -> decode+normalize -> resize -> encode
+                    batch_processed = (
+                        batch_df
+                        .with_column("file_data", daft.col("path").url.download())
+                        .with_column("image_data", decode_and_normalize_udf(daft.col("file_data")))
+                        .with_column("resized_image", daft.col("image_data").image.resize(224, 224))
+                        .with_column("encoded_image", daft.col("resized_image").image.encode("JPEG"))
+                    ).collect()
+                    
+                    # Ensure batch_processed is a list and not a dataframe
+                    if hasattr(batch_processed, 'collect'):
+                        batch_processed = batch_processed.collect()
+                    
+                    batch_size_actual = len(batch_processed) if batch_processed else 0
+                    print(f"Batch {batch_idx + 1} processed successfully ({batch_size_actual} images)")
+                    all_processed_images.extend(batch_processed)
+                    
+                    # Update progress
+                    processing_jobs[job_id].update({
+                        'processed_images': len(all_processed_images),
+                        'progress': int(len(all_processed_images) / total_images * 100),
+                        'current_batch': batch_idx + 1,
+                        'total_batches': num_batches
+                    })
+                    
+                except Exception as e:
+                    print(f"Error processing batch {batch_idx + 1}: {e}")
+                    # Continue with next batch instead of failing completely
+                    continue
             
-            # Pipeline: read -> decode+normalize -> resize -> encode
-            df_images = (
-                df_images
-                .with_column("file_data", daft.col("path").url.download())
-                .with_column("image_data", decode_and_normalize_udf(daft.col("file_data")))
-                .with_column("resized_image", daft.col("image_data").image.resize(224, 224))
-                .with_column("encoded_image", daft.col("resized_image").image.encode("JPEG"))
-            )
-            
-            resized_results = df_images.collect()
+            resized_results = all_processed_images
+            print(f"Completed processing all batches. Total processed: {len(resized_results)} images")
             
             print("Saving images and generating AI tags...")
             processed_images = []
