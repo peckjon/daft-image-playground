@@ -1,3 +1,16 @@
+<link rel="canonical" href="https://peckjon.github.io/daft-image-playground/" />
+<meta name="description" content="Intelligent image search tool using Daft.ai, Flask, and image recognition. Search and explore images intelligently on this playground." />
+<meta name="robots" content="index, follow" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Daft Image Playground – Intelligent Image Search Tool" />
+<meta name="twitter:description" content="Intelligent image search tool using Daft.ai, Flask, and image recognition." />
+<meta name="twitter:image" content="https://github.com/user-attachments/assets/9513c930-fc68-4ae4-b5d7-d5acfe702784" />
+<meta property="og:type" content="website" />
+<meta property="og:title" content="Daft Image Playground – Intelligent Image Search Tool" />
+<meta property="og:description" content="Intelligent image search tool using Daft.ai, Flask, and image recognition." />
+<meta property="og:image" content="https://github.com/user-attachments/assets/9513c930-fc68-4ae4-b5d7-d5acfe702784" />
+<meta property="og:url" content="https://peckjon.github.io/daft-image-playground/" />
+
 <div align="center" style="max-width: 720px; margin: 0 auto;">
 <video width="100%" controls>
   <source src="https://github.com/user-attachments/assets/71fce0b2-e37e-4a4d-8649-336ced5a42f6" type="video/mp4">
