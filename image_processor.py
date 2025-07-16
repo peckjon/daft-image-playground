@@ -163,7 +163,9 @@ class ImageProcessor:
             num_batches = (total_images + batch_size - 1) // batch_size
             print(f"Processing {total_images} images in {num_batches} batches of {batch_size}")
             
-            all_processed_images = []
+            # Process incrementally to avoid memory issues
+            processed_images = []
+            total_processed = 0
             
             for batch_idx in range(num_batches):
                 start_idx = batch_idx * batch_size
@@ -222,18 +224,51 @@ class ImageProcessor:
                         .with_column("encoded_image", daft.col("resized_image").image.encode("JPEG"))
                     ).collect()
                     
-                    # Ensure batch_processed is a list and not a dataframe
-                    if hasattr(batch_processed, 'collect'):
-                        batch_processed = batch_processed.collect()
-                    
                     batch_size_actual = len(batch_processed) if batch_processed else 0
                     print(f"Batch {batch_idx + 1} processed successfully ({batch_size_actual} images)")
-                    all_processed_images.extend(batch_processed)
+                    
+                    # Process this batch immediately instead of accumulating
+                    for i, row in enumerate(batch_processed):
+                        try:
+                            local_path = self.convert_uri_to_path(row['path'])
+                            filename = os.path.basename(local_path)
+                            name, _ = os.path.splitext(filename)
+                            image_hash = hashlib.md5(local_path.encode()).hexdigest()[:8]
+                            processed_filename = f"{name}_{image_hash}.jpg"
+                            processed_path = os.path.join('processed_images', processed_filename)
+                            
+                            # Save encoded image
+                            with open(processed_path, 'wb') as f:
+                                f.write(row['encoded_image'])
+                            
+                            # Generate tags and caption
+                            tags, caption = self.generate_tags_and_caption_from_array(row['resized_image'])
+                            
+                            file_stats = os.stat(local_path)
+                            processed_images.append({
+                                'id': image_hash,
+                                'filename': filename,
+                                'original_path': local_path,
+                                'processed_path': processed_filename,
+                                'file_size': file_stats.st_size,
+                                'created_date': datetime.fromtimestamp(file_stats.st_mtime).isoformat(),
+                                'tags': tags,
+                                'caption': caption,
+                                'processed_date': datetime.now().isoformat()
+                            })
+                        except Exception as e:
+                            print(f"Skipping failed image: {row.get('path', 'unknown')} - {e}")
+                    
+                    # Clear batch data to free memory
+                    batch_processed = None
+                    batch_df = None
+                    
+                    total_processed += batch_size_actual
                     
                     # Update progress
                     processing_jobs[job_id].update({
-                        'processed_images': len(all_processed_images),
-                        'progress': int(len(all_processed_images) / total_images * 100),
+                        'processed_images': total_processed,
+                        'progress': int(total_processed / total_images * 100),
                         'current_batch': batch_idx + 1,
                         'total_batches': num_batches
                     })
@@ -243,47 +278,9 @@ class ImageProcessor:
                     # Continue with next batch instead of failing completely
                     continue
             
-            resized_results = all_processed_images
-            print(f"Completed processing all batches. Total processed: {len(resized_results)} images")
+            print(f"Completed processing all batches. Total processed: {total_processed} images")
             
-            print("Saving images and generating AI tags...")
-            processed_images = []
-            
-            for i, row in enumerate(resized_results):
-                try:
-                    local_path = self.convert_uri_to_path(row['path'])
-                    filename = os.path.basename(local_path)
-                    name, _ = os.path.splitext(filename)
-                    image_hash = hashlib.md5(local_path.encode()).hexdigest()[:8]
-                    processed_filename = f"{name}_{image_hash}.jpg"
-                    processed_path = os.path.join('processed_images', processed_filename)
-                    
-                    # Save encoded image
-                    with open(processed_path, 'wb') as f:
-                        f.write(row['encoded_image'])
-                    
-                    # Generate tags and caption
-                    tags, caption = self.generate_tags_and_caption_from_array(row['resized_image'])
-                    
-                    file_stats = os.stat(local_path)
-                    processed_images.append({
-                        'id': image_hash,
-                        'filename': filename,
-                        'original_path': local_path,
-                        'processed_path': processed_filename,
-                        'file_size': file_stats.st_size,
-                        'created_date': datetime.fromtimestamp(file_stats.st_mtime).isoformat(),
-                        'tags': tags,
-                        'caption': caption,
-                        'processed_date': datetime.now().isoformat()
-                    })
-                except Exception as e:
-                    print(f"Skipping failed image: {row.get('path', 'unknown')} - {e}")
-                
-                processing_jobs[job_id].update({
-                    'processed_images': i + 1,
-                    'progress': int((i + 1) / total_images * 100)
-                })
+            print("Aggregating final results...")
             
             # Load existing data and aggregate new images
             os.makedirs('data', exist_ok=True)
