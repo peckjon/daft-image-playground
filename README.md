@@ -1,9 +1,3 @@
----
-title: "Building an AI-Powered Image Search Engine with Daft.ai"
-description: "Intelligent image search tool using Daft.ai, Flask, and image recognition. Search and explore images intelligently on this playground."
-image: https://github.com/user-attachments/assets/9513c930-fc68-4ae4-b5d7-d5acfe702784
----
-
 <div align="center" style="max-width: 720px; margin: 0 auto;">
 <video width="100%" controls>
   <source src="https://github.com/user-attachments/assets/71fce0b2-e37e-4a4d-8649-336ced5a42f6" type="video/mp4">
