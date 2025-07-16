@@ -39,16 +39,23 @@ class ImageProcessor:
     
     def find_images(self, folder_path):
         """Use Daft to find all images in folder and subfolders"""
-        df = daft.from_glob_path(f"{folder_path}/**/*")
-        return df.where(
-            df["path"].str.endswith(".jpg") |
-            df["path"].str.endswith(".jpeg") |
-            df["path"].str.endswith(".png") |
-            df["path"].str.endswith(".gif") |
-            df["path"].str.endswith(".bmp") |
-            df["path"].str.endswith(".webp") |
-            df["path"].str.endswith(".tiff")
-        )
+        try:
+            df = daft.from_glob_path(f"{folder_path}/**/*")
+            
+            # Case-insensitive extension matching
+            return df.where(
+                df["path"].str.lower().str.endswith(".jpg") |
+                df["path"].str.lower().str.endswith(".jpeg") |
+                df["path"].str.lower().str.endswith(".png") |
+                df["path"].str.lower().str.endswith(".gif") |
+                df["path"].str.lower().str.endswith(".bmp") |
+                df["path"].str.lower().str.endswith(".webp") |
+                df["path"].str.lower().str.endswith(".tiff")
+            )
+        except Exception as e:
+            print(f"Error in find_images: {e}")
+            # Return empty dataframe if glob fails
+            return daft.from_pylist([])
     
     def convert_uri_to_path(self, uri_path):
         """Convert file:// URI to local file path"""
@@ -112,9 +119,58 @@ class ImageProcessor:
             processing_jobs[job_id]['status'] = 'discovering'
             
             print(f"Discovering images in {folder_path}...")
+            
+            # Check if folder exists
+            if not os.path.exists(folder_path):
+                processing_jobs[job_id].update({
+                    'status': 'error',
+                    'error': f'Folder does not exist: {folder_path}'
+                })
+                return
+            
+            if not os.path.isdir(folder_path):
+                processing_jobs[job_id].update({
+                    'status': 'error',
+                    'error': f'Path is not a directory: {folder_path}'
+                })
+                return
+            
             df_images = self.find_images(folder_path)
-            image_files = df_images.collect()
-            total_images = len(image_files)
+            
+            try:
+                image_files = df_images.collect()
+                total_images = len(image_files)
+                print(f"Found {total_images} image files")
+                
+                # Debug: show first few files found
+                if total_images > 0:
+                    print("Sample files found:")
+                    for i, img in enumerate(image_files[:3]):
+                        print(f"  {i+1}. {img['path']}")
+                    if total_images > 3:
+                        print(f"  ... and {total_images-3} more")
+                else:
+                    print("No image files found. Checking directory contents...")
+                    # Manual check for debugging
+                    all_files = []
+                    for root, dirs, files in os.walk(folder_path):
+                        for file in files:
+                            if file.lower().endswith(('.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.tiff')):
+                                all_files.append(os.path.join(root, file))
+                    print(f"Manual scan found {len(all_files)} image files")
+                    if all_files:
+                        print("Sample manually found files:")
+                        for f in all_files[:3]:
+                            print(f"  {f}")
+                            
+            except Exception as e:
+                print(f"Error collecting image files: {e}")
+                processing_jobs[job_id].update({
+                    'status': 'error',
+                    'error': f'Failed to collect image files: {str(e)}'
+                })
+                return
+                
             processing_jobs[job_id]['total_images'] = total_images
             
             if total_images == 0:

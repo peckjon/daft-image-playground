@@ -18,6 +18,56 @@
         .status-badge {
             font-size: 0.8rem;
         }
+        .folder-browser {
+            border: 1px solid #dee2e6;
+            border-radius: 0.375rem;
+            max-height: 400px;
+            overflow-y: auto;
+            background: #fff;
+        }
+        .folder-item {
+            padding: 0.5rem 0.75rem;
+            border-bottom: 1px solid #f1f3f4;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+        }
+        .folder-item:hover {
+            background-color: #f8f9fa;
+        }
+        .folder-item:last-child {
+            border-bottom: none;
+        }
+        .folder-item.selected {
+            background-color: #e3f2fd;
+            border-left: 3px solid #2196f3;
+        }
+        .folder-icon {
+            margin-right: 0.5rem;
+            width: 16px;
+            text-align: center;
+        }
+        .folder-path {
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-size: 0.9rem;
+            color: #666;
+            background: #f8f9fa;
+            padding: 0.5rem;
+            border-radius: 0.25rem;
+            margin-bottom: 0.5rem;
+        }
+        .browse-controls {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+        .folder-stats {
+            font-size: 0.85rem;
+            color: #666;
+            padding: 0.5rem 0.75rem;
+            background: #f8f9fa;
+            border-top: 1px solid #dee2e6;
+        }
     </style>
 </head>
 <body>
@@ -45,11 +95,56 @@
                                 <label for="folderPath" class="form-label">
                                     <i class="fas fa-folder"></i> Folder Path
                                 </label>
-                                <input type="text" class="form-control" id="folderPath" 
-                                       placeholder="/path/to/your/images" required>
+                                <div class="input-group">
+                                    <input type="text" class="form-control" id="folderPath" 
+                                           placeholder="/path/to/your/images" required>
+                                    <button type="button" class="btn btn-outline-secondary" id="browseBtn">
+                                        <i class="fas fa-folder-open"></i> Browse
+                                    </button>
+                                </div>
                                 <div class="form-text">
-                                    Enter the full path to the folder containing your images. 
+                                    Enter the full path to the folder containing your images, or click "Browse" to navigate folders. 
                                     All subfolders will be processed automatically.
+                                </div>
+                            </div>
+                            
+                            <!-- Folder Browser Modal -->
+                            <div class="modal fade" id="folderBrowserModal" tabindex="-1">
+                                <div class="modal-dialog modal-lg">
+                                    <div class="modal-content">
+                                        <div class="modal-header">
+                                            <h5 class="modal-title">
+                                                <i class="fas fa-folder-open"></i> Select Folder
+                                            </h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <div class="folder-path" id="currentPath"></div>
+                                            <div class="browse-controls">
+                                                <button type="button" class="btn btn-sm btn-outline-primary" id="parentBtn">
+                                                    <i class="fas fa-arrow-up"></i> Parent Folder
+                                                </button>
+                                                <button type="button" class="btn btn-sm btn-outline-secondary" id="homeBtn">
+                                                    <i class="fas fa-home"></i> Home
+                                                </button>
+                                                <button type="button" class="btn btn-sm btn-outline-info" id="refreshBtn">
+                                                    <i class="fas fa-sync"></i> Refresh
+                                                </button>
+                                            </div>
+                                            <div class="folder-browser" id="folderList">
+                                                <div class="text-center p-3">
+                                                    <i class="fas fa-spinner fa-spin"></i> Loading...
+                                                </div>
+                                            </div>
+                                            <div class="folder-stats" id="folderStats"></div>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                            <button type="button" class="btn btn-primary" id="selectFolderBtn" disabled>
+                                                <i class="fas fa-check"></i> Select This Folder
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                             <button type="submit" class="btn btn-primary" id="processBtn">
@@ -99,6 +194,17 @@
                                 <li>Creates a searchable JSON database of all processed images</li>
                             </ul>
                         </div>
+
+                        <div class="alert alert-success mt-3">
+                            <h6><i class="fas fa-folder-open"></i> New: Graphical Folder Browser!</h6>
+                            <p class="mb-1">Click the "Browse" button to navigate folders visually instead of typing paths manually.</p>
+                            <ul class="mb-0 small">
+                                <li><strong>Navigate:</strong> Double-click folders to enter them</li>
+                                <li><strong>Select:</strong> Single-click to select, then click "Select This Folder"</li>
+                                <li><strong>Preview:</strong> See image count before processing</li>
+                                <li><strong>Cross-platform:</strong> Works on all operating systems without browser restrictions</li>
+                            </ul>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -110,13 +216,15 @@
     <script>
         let currentJobId = null;
         let statusInterval = null;
+        let currentBrowsePath = null;
+        let selectedFolderPath = null;
 
         $('#processForm').on('submit', function(e) {
             e.preventDefault();
             
             const folderPath = $('#folderPath').val().trim();
             if (!folderPath) {
-                alert('Please enter a folder path');
+                alert('Please enter a folder path or select one using Browse');
                 return;
             }
 
@@ -125,6 +233,150 @@
 
         $('#resetBtn').on('click', function() {
             resetImageLibrary();
+        });
+
+        $('#browseBtn').on('click', function() {
+            openFolderBrowser();
+        });
+
+        // Folder browser functionality
+        function openFolderBrowser() {
+            const modal = new bootstrap.Modal(document.getElementById('folderBrowserModal'));
+            modal.show();
+            
+            // Start browsing from current path or home directory
+            const currentPath = $('#folderPath').val().trim() || null;
+            browseFolders(currentPath);
+        }
+
+        function browseFolders(path = null) {
+            $('#folderList').html('<div class="text-center p-3"><i class="fas fa-spinner fa-spin"></i> Loading...</div>');
+            $('#parentBtn, #selectFolderBtn').prop('disabled', true);
+            
+            $.ajax({
+                url: '/api/browse',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({ path: path }),
+                success: function(data) {
+                    currentBrowsePath = data.current_path;
+                    selectedFolderPath = data.current_path;
+                    displayFolderContents(data);
+                },
+                error: function(xhr) {
+                    const error = xhr.responseJSON?.error || 'Failed to browse folders';
+                    $('#folderList').html(`<div class="text-center p-3 text-danger"><i class="fas fa-exclamation-triangle"></i> ${error}</div>`);
+                }
+            });
+        }
+
+        function displayFolderContents(data) {
+            $('#currentPath').text(data.current_path);
+            $('#parentBtn').prop('disabled', !data.parent_path);
+            $('#selectFolderBtn').prop('disabled', false);
+            
+            let html = '';
+            
+            // Add parent folder option
+            if (data.parent_path) {
+                html += `
+                    <div class="folder-item" data-path="${data.parent_path}" data-type="parent">
+                        <span class="folder-icon"><i class="fas fa-arrow-up text-primary"></i></span>
+                        <span>.. (Parent folder)</span>
+                    </div>
+                `;
+            }
+            
+            // Add folders
+            data.folders.forEach(folder => {
+                html += `
+                    <div class="folder-item" data-path="${folder.path}" data-type="folder">
+                        <span class="folder-icon"><i class="fas fa-folder text-warning"></i></span>
+                        <span>${folder.name}</span>
+                    </div>
+                `;
+            });
+            
+            // Add image files (for reference)
+            if (data.image_files.length > 0) {
+                html += '<hr style="margin: 0.5rem 0;">';
+                data.image_files.slice(0, 10).forEach(file => {
+                    html += `
+                        <div class="folder-item" data-path="${file.path}" data-type="file">
+                            <span class="folder-icon"><i class="fas fa-image text-success"></i></span>
+                            <span>${file.name}</span>
+                        </div>
+                    `;
+                });
+                
+                if (data.image_files.length > 10) {
+                    html += `
+                        <div class="folder-item" style="font-style: italic; color: #666;">
+                            <span class="folder-icon"></span>
+                            <span>... and ${data.image_files.length - 10} more images</span>
+                        </div>
+                    `;
+                }
+            }
+            
+            if (html === '') {
+                html = '<div class="text-center p-3 text-muted">This folder is empty</div>';
+            }
+            
+            $('#folderList').html(html);
+            
+            // Update stats
+            const stats = `${data.folders.length} folders, ${data.total_images} images`;
+            $('#folderStats').text(stats);
+            
+            // Mark current folder as selected
+            $('.folder-item').removeClass('selected');
+            $('.folder-item').first().addClass('selected');
+        }
+
+        // Handle folder browser interactions
+        $(document).on('click', '.folder-item', function() {
+            const path = $(this).data('path');
+            const type = $(this).data('type');
+            
+            $('.folder-item').removeClass('selected');
+            $(this).addClass('selected');
+            
+            if (type === 'folder' || type === 'parent') {
+                selectedFolderPath = path;
+                // Double-click to navigate into folder
+            }
+        });
+
+        $(document).on('dblclick', '.folder-item', function() {
+            const path = $(this).data('path');
+            const type = $(this).data('type');
+            
+            if (type === 'folder' || type === 'parent') {
+                browseFolders(path);
+            }
+        });
+
+        $('#parentBtn').on('click', function() {
+            if (currentBrowsePath) {
+                const parentPath = currentBrowsePath.split('/').slice(0, -1).join('/') || '/';
+                browseFolders(parentPath);
+            }
+        });
+
+        $('#homeBtn').on('click', function() {
+            browseFolders(null); // Will default to home directory
+        });
+
+        $('#refreshBtn').on('click', function() {
+            browseFolders(currentBrowsePath);
+        });
+
+        $('#selectFolderBtn').on('click', function() {
+            if (selectedFolderPath) {
+                $('#folderPath').val(selectedFolderPath);
+                bootstrap.Modal.getInstance(document.getElementById('folderBrowserModal')).hide();
+            }
         });
 
         function startProcessing(folderPath) {

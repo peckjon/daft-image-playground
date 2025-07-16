@@ -141,6 +141,79 @@ def serve_processed_image(filename):
     """Serve processed images"""
     return send_from_directory('processed_images', filename)
 
+@app.route('/api/browse', methods=['POST'])
+def browse_folders():
+    """Browse folders starting from a given path"""
+    try:
+        data = request.get_json() or {}
+        start_path = data.get('path')
+        
+        # Use home directory if no path provided or path is None
+        if not start_path:
+            start_path = os.path.expanduser('~')
+        
+        # Sanitize and validate path
+        start_path = os.path.abspath(start_path)
+        if not os.path.exists(start_path) or not os.path.isdir(start_path):
+            start_path = os.path.expanduser('~')
+        
+        folders = []
+        files = []
+        
+        try:
+            for item in sorted(os.listdir(start_path)):
+                if not item:  # Skip empty names
+                    continue
+                    
+                item_path = os.path.join(start_path, item)
+                
+                # Skip hidden files and system folders
+                if item.startswith('.'):
+                    continue
+                    
+                try:
+                    if os.path.isdir(item_path):
+                        # Check if directory is accessible
+                        try:
+                            os.listdir(item_path)
+                            folders.append({
+                                'name': item,
+                                'path': item_path,
+                                'type': 'folder'
+                            })
+                        except (PermissionError, OSError):
+                            # Skip inaccessible folders
+                            continue
+                    elif os.path.isfile(item_path) and item.lower().endswith(('.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.tiff')):
+                        files.append({
+                            'name': item,
+                            'path': item_path,
+                            'type': 'image'
+                        })
+                except (OSError, IOError):
+                    # Skip files that can't be accessed
+                    continue
+        except PermissionError:
+            return jsonify({'error': 'Permission denied to access this folder'}), 403
+        
+        # Get parent directory safely
+        parent_path = None
+        if start_path != '/':  # Unix root
+            parent_candidate = os.path.dirname(start_path)
+            if parent_candidate != start_path:  # Avoid infinite loop on Windows drives
+                parent_path = parent_candidate
+        
+        return jsonify({
+            'current_path': start_path,
+            'parent_path': parent_path,
+            'folders': folders,
+            'image_files': files,
+            'total_images': len(files)
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/reset', methods=['POST'])
 def reset_library():
     """Reset the image library by clearing all processed data"""
