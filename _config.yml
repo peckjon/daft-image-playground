@@ -1,7 +1,8 @@
 # GitHub Pages configuration - for documentation site only
 # This file does not affect the Flask application functionality
 
-theme: jekyll-theme-hacker
+theme: jekyll-theme-cayman
 google_analytics: true
 show_downloads: false
-title: "Image Playground using Daft.ai"
+title: "Daft Image Playground"
+description: "AI image search via Daft.ai, Flask, and BLIP"
