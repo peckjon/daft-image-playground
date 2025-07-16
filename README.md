@@ -1,7 +1,6 @@
 <div align="center" style="max-width: 720px; margin: 0 auto;">
 <video width="100%" controls>
-  <source src="https://peckjon.github.io/daft-image-playground/preview.jpg" type="video/mp4">
-  <img src="4" alt="Daft Image Playground - AI-powered image search tool" style="width: 100%; max-width: 720px;">
+  <source src="https://github.com/user-attachments/assets/71fce0b2-e37e-4a4d-8649-336ced5a42f6" type="video/mp4">
   Image Playground demo using Daft.ai
 </video>
 </div>
