@@ -6,3 +6,23 @@ google_analytics: true
 show_downloads: false
 title: "Daft Image Playground"
 description: "AI image search via Daft.ai, Flask, and BLIP"
+plugins:
+  - jekyll-seo-tag
+
+# Author and social configuration for SEO
+author:
+  name: Jon Peck
+  twitter: peckjon
+
+# Social media configuration
+twitter:
+  username: peckjon
+
+# Additional social links for LinkedIn
+social:
+  name: Jon Peck
+  links:
+    - https://peckjon.github.io/
+    - https://twitter.com/peckjon
+    - https://linkedin.com/in/peckjon
+    - https://github.com/peckjon
