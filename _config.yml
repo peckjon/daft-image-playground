@@ -4,8 +4,8 @@
 theme: jekyll-theme-slate
 google_analytics: true
 show_downloads: false
-title: "Daft Image Playground – Intelligent Image Search Tool"
-description: "Intelligent image search tool using Daft.ai, Flask, and image recognition. Search and explore images intelligently on this playground."
+title: "Daft Image Playground"
+description: "AI image search via Daft.ai, Flask, and BLIP"
 
 # SEO and social media meta tags
 url: "https://peckjon.github.io"
